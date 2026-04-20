@@ -14,6 +14,18 @@ const verifyBookingOTP = async (email, otp) => {
     return OTP.findOne({ email, otp, action: 'event_booking' });
 };
 
+const reserveSeatForEvent = async (eventId) => {
+    return Event.findOneAndUpdate(
+        { _id: eventId, availableSeats: { $gt: 0 } },
+        { $inc: { availableSeats: -1 } },
+        { new: true }
+    );
+};
+
+const releaseReservedSeat = async (eventId) => {
+    await Event.findByIdAndUpdate(eventId, { $inc: { availableSeats: 1 } });
+};
+
 const ensureEventBookable = async (eventId, userId) => {
     const event = await Event.findById(eventId);
     if (!event) {
@@ -110,8 +122,22 @@ const initiateRazorpayRefund = async ({ booking, razorpay, paymentId, notes, fai
     return { refund, refundProcessed };
 };
 
+const ensureBookingAllowedForRole = (req, res) => {
+    if (req.user.role === 'client') {
+        res.status(403).json({
+            message: 'Client organizer accounts cannot book events. Please use a user account.'
+        });
+        return false;
+    }
+    return true;
+};
+
 exports.sendBookingOTP = async (req, res) => {
     try {
+        if (!ensureBookingAllowedForRole(req, res)) {
+            return;
+        }
+
         const otp = generateOTP();
         await OTP.findOneAndDelete({ email: req.user.email, action: 'event_booking' });
         await OTP.create({ email: req.user.email, otp, action: 'event_booking' });
@@ -124,6 +150,10 @@ exports.sendBookingOTP = async (req, res) => {
 
 exports.bookEvent = async (req, res) => {
     try {
+        if (!ensureBookingAllowedForRole(req, res)) {
+            return;
+        }
+
         const { eventId, otp } = req.body;
 
         if (!eventId || !otp) {
@@ -144,18 +174,27 @@ exports.bookEvent = async (req, res) => {
             return res.status(400).json({ message: 'Paid events must be completed through Razorpay checkout' });
         }
 
-        const booking = await Booking.create({
-            userId: req.user.id,
-            eventId,
-            status: 'confirmed',
-            paymentStatus: 'paid',
-            paymentMethod: 'free',
-            paymentGateway: 'none',
-            amount: 0
-        });
+        const reservedEvent = await reserveSeatForEvent(eventId);
+        if (!reservedEvent) {
+            return res.status(400).json({ message: 'No seats available' });
+        }
 
-        event.availableSeats -= 1;
-        await event.save();
+        let booking;
+        try {
+            booking = await Booking.create({
+                userId: req.user.id,
+                eventId,
+                status: 'confirmed',
+                paymentStatus: 'paid',
+                paymentMethod: 'free',
+                paymentGateway: 'none',
+                amount: 0
+            });
+        } catch (bookingError) {
+            await releaseReservedSeat(eventId);
+            throw bookingError;
+        }
+
         await OTP.deleteOne({ _id: validOTP._id });
 
         res.status(201).json({ message: 'Free event booked successfully', booking });
@@ -166,6 +205,10 @@ exports.bookEvent = async (req, res) => {
 
 exports.createPaymentOrder = async (req, res) => {
     try {
+        if (!ensureBookingAllowedForRole(req, res)) {
+            return;
+        }
+
         if (!hasRazorpayConfig()) {
             return res.status(500).json({ message: 'Razorpay is not configured on the server' });
         }
@@ -282,8 +325,8 @@ exports.verifyPayment = async (req, res) => {
         }
 
         if (booking.status !== 'confirmed') {
-            const event = await Event.findById(booking.eventId._id);
-            if (!event || event.availableSeats <= 0) {
+            const reservedEvent = await reserveSeatForEvent(booking.eventId._id);
+            if (!reservedEvent) {
                 const { refund, refundProcessed } = await initiateRazorpayRefund({
                     booking,
                     razorpay,
@@ -304,8 +347,6 @@ exports.verifyPayment = async (req, res) => {
                 return res.status(409).json({ message, refundStatus: refund.status });
             }
 
-            event.availableSeats -= 1;
-            await event.save();
         }
 
         booking.status = 'confirmed';
@@ -466,6 +507,10 @@ exports.confirmBooking = async (req, res) => {
 
 exports.getMyBookings = async (req, res) => {
     try {
+        if (req.user.role === 'client') {
+            return res.status(403).json({ message: 'Client organizer accounts do not have booking history' });
+        }
+
         const bookings = req.user.role === 'admin'
             ? await Booking.find().populate('eventId').populate('userId', 'name email').sort({ createdAt: -1 })
             : await Booking.find({ userId: req.user.id }).populate('eventId').sort({ createdAt: -1 });

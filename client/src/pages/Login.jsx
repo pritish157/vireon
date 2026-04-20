@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext } from '../context/authContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
@@ -51,10 +51,12 @@ const Login = () => {
             if (!showOTP) {
                 const data = await login(email.trim(), password);
                 if (data.role === 'admin') navigate('/admin');
+                else if (data.role === 'client') navigate('/client/dashboard');
                 else navigate('/dashboard');
             } else {
-                const data = await verifyOTP(email.trim(), otp.trim());
+                const data = await verifyOTP(email.trim(), otp.trim(), 'user');
                 if (data.role === 'admin') navigate('/admin');
+                else if (data.role === 'client') navigate('/client/dashboard');
                 else navigate('/dashboard');
             }
         } catch (err) {
@@ -62,7 +64,12 @@ const Login = () => {
                 setShowOTP(true);
                 setError('Account not verified. A new OTP has been sent to your email.');
             } else {
-                setError(err.message || err);
+                const msg = typeof err === 'string' ? err : err?.message || 'Sign in failed';
+                const hint =
+                    /invalid credentials/i.test(msg)
+                        ? ' Check that you are on the right login page (admin/user vs client) and that your password is correct.'
+                        : '';
+                setError(`${msg}${hint}`);
             }
         } finally {
             setLoading(false);
@@ -74,6 +81,11 @@ const Login = () => {
             <div className="text-center mb-8">
                 <h2 className="text-3xl font-extrabold text-gray-900 mb-2">Welcome Back</h2>
                 <p className="text-gray-500">Sign in to your Vireon account</p>
+                <p className="text-gray-400 text-xs mt-2 max-w-sm mx-auto">
+                    Admins and attendees use this page. Event organizers (clients) should use{' '}
+                    <Link to="/client/login" className="text-gray-600 font-semibold hover:underline">client login</Link>
+                    .
+                </p>
             </div>
 
             {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-center shadow-inner border border-red-100">{error}</div>}
@@ -140,6 +152,9 @@ const Login = () => {
 
             <p className="text-center mt-8 text-gray-600">
                 Don't have an account? <Link to="/register" className="text-gray-900 font-bold hover:underline">Sign up</Link>
+            </p>
+            <p className="text-center mt-2 text-gray-500 text-sm">
+                Event organizer? <Link to="/client/login" className="text-gray-800 font-semibold hover:underline">Client login</Link>
             </p>
         </div>
     );

@@ -11,6 +11,14 @@ const transporter = nodemailer.createTransport({
     }
 });
 
+const escapeHtml = (value) =>
+    String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
 const sendBookingEmail = async (userEmail, userName, eventTitle) => {
     try {
         const mailOptions = {
@@ -61,4 +69,110 @@ const sendOTPEmail = async (userEmail, otp, type) => {
     }
 };
 
-module.exports = { sendBookingEmail, sendOTPEmail };
+const sendClientEventApprovalEmail = async ({
+    adminEmails,
+    clientName,
+    clientEmail,
+    requestType,
+    eventTitle,
+    requestId,
+    editRequestReason = ''
+}) => {
+    try {
+        if (!Array.isArray(adminEmails) || adminEmails.length === 0) {
+            return;
+        }
+
+        const isEditRequest = requestType === 'edit';
+        const subject = isEditRequest
+            ? `Client Event Edit Approval Required: ${eventTitle}`
+            : `Client Event Registration Approval Required: ${eventTitle}`;
+        const actionLabel = isEditRequest ? 'edit approval' : 'registration approval';
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: adminEmails.join(','),
+            subject,
+            html: `
+                <div style="font-family: Arial, sans-serif; padding: 20px;">
+                    <h2 style="color: #111;">Client Event ${isEditRequest ? 'Edit' : 'Registration'} Request</h2>
+                    <p style="color: #444;">
+                        A client has submitted an event ${isEditRequest ? 'edit' : 'registration'} request and it needs admin review.
+                    </p>
+                    <ul style="color: #333;">
+                        <li><strong>Client:</strong> ${escapeHtml(clientName)}</li>
+                        <li><strong>Email:</strong> ${escapeHtml(clientEmail)}</li>
+                        <li><strong>Event:</strong> ${escapeHtml(eventTitle)}</li>
+                        <li><strong>Request ID:</strong> ${escapeHtml(requestId)}</li>
+                        <li><strong>Action:</strong> ${actionLabel}</li>
+                    </ul>
+                    ${isEditRequest && editRequestReason
+                        ? `<p style="color: #333;"><strong>Client Requested Changes:</strong></p>
+                           <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; color:#222;">
+                               ${escapeHtml(editRequestReason)}
+                           </div>`
+                        : ''}
+                    <p style="color: #666;">
+                        Please review this request in the Vireon admin dashboard.
+                    </p>
+                </div>
+            `
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log(`Client event request email sent to admins (${adminEmails.length} recipients)`);
+    } catch (error) {
+        console.error('Error sending client event approval email:', error);
+    }
+};
+
+const sendClientEventDecisionEmail = async ({
+    clientEmail,
+    clientName,
+    eventTitle,
+    requestType,
+    action,
+    reviewNote = ''
+}) => {
+    try {
+        if (!clientEmail) {
+            return;
+        }
+
+        const isApproved = action === 'approve';
+        const typeLabel = requestType === 'edit' ? 'event edit request' : 'event registration request';
+        const subject = isApproved
+            ? `Your ${typeLabel} was approved: ${eventTitle}`
+            : `Your ${typeLabel} was rejected: ${eventTitle}`;
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: clientEmail,
+            subject,
+            html: `
+                <div style="font-family: Arial, sans-serif; padding: 20px;">
+                    <h2 style="color: #111;">Hi ${escapeHtml(clientName || 'there')},</h2>
+                    <p style="color: #444;">
+                        Your ${escapeHtml(typeLabel)} for <strong>${escapeHtml(eventTitle)}</strong> has been
+                        <strong style="color:${isApproved ? '#15803d' : '#b91c1c'};">${isApproved ? 'approved' : 'rejected'}</strong>.
+                    </p>
+                    ${reviewNote
+                        ? `<p style="color:#333;"><strong>Admin Note:</strong> ${escapeHtml(reviewNote)}</p>`
+                        : ''}
+                    <p style="color: #666;">
+                        ${isApproved
+                            ? 'The approved changes are now reflected in Vireon.'
+                            : 'You can submit a new request with updated details in your client dashboard.'}
+                    </p>
+                </div>
+            `
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log(`Client request decision email sent to ${clientEmail}`);
+    } catch (error) {
+        console.error('Error sending client request decision email:', error);
+    }
+};
+
+module.exports = { sendBookingEmail, sendOTPEmail, sendClientEventApprovalEmail, sendClientEventDecisionEmail };

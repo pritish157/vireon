@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import api from '../utils/axios';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext } from '../context/authContext';
 import { FaCalendarAlt, FaMapMarkerAlt, FaChair, FaMoneyBillWave, FaArrowLeft } from 'react-icons/fa';
 import ShareEvent from '../components/ShareEvent';
 import RatingComponent from '../components/RatingComponent';
@@ -70,7 +70,7 @@ const EventDetail = () => {
 
     useEffect(() => {
         const fetchExistingBooking = async () => {
-            if (!user || !id) {
+            if (!user || !id || user.role === 'client') {
                 setExistingBooking(null);
                 return;
             }
@@ -163,6 +163,11 @@ const EventDetail = () => {
             return;
         }
 
+        if (user.role === 'client') {
+            setError('Client organizer accounts cannot book tickets. Please use a user account for bookings.');
+            return;
+        }
+
         if (!event) return;
 
         setBookingLoading(true);
@@ -199,6 +204,7 @@ const EventDetail = () => {
 
     const isSoldOut = event.availableSeats <= 0;
     const isPaidEvent = event.ticketPrice > 0;
+    const isClientAccount = user?.role === 'client';
     const hasActiveBooking = Boolean(existingBooking);
     const bookingStatusLabel = existingBooking?.status === 'confirmed'
         ? 'You already have a confirmed booking for this event.'
@@ -256,6 +262,11 @@ const EventDetail = () => {
                                 <div className="bg-gray-50 p-4 rounded-xl">
                                     <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Location</p>
                                     <p className="text-sm font-bold text-gray-900 truncate">{event.location}</p>
+                                    {(event.city || event.district || event.state) && (
+                                        <p className="mt-1 text-xs font-medium text-gray-600">
+                                            {[event.city, event.district, event.state].filter(Boolean).join(' · ')}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
 
@@ -308,6 +319,11 @@ const EventDetail = () => {
                                     <div>
                                         <p className="text-xs font-semibold text-gray-500 uppercase">Location</p>
                                         <p className="font-bold text-gray-900 text-sm">{event.location}</p>
+                                        {(event.city || event.district || event.state) && (
+                                            <p className="text-xs font-medium text-gray-500 mt-0.5">
+                                                {[event.city, event.district, event.state].filter(Boolean).join(' · ')}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -321,6 +337,12 @@ const EventDetail = () => {
                             {hasActiveBooking && (
                                 <div className="mb-6 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900">
                                     {bookingStatusLabel}
+                                </div>
+                            )}
+
+                            {isClientAccount && (
+                                <div className="mb-6 rounded-xl border border-orange-100 bg-orange-50 p-4 text-sm text-orange-900">
+                                    Client organizer accounts can create and manage events, but cannot book tickets.
                                 </div>
                             )}
 
@@ -341,15 +363,17 @@ const EventDetail = () => {
 
                             <button
                                 onClick={handleBooking}
-                                disabled={isSoldOut || hasActiveBooking || bookingLoading || (showOTP && otp.length !== 6)}
+                                disabled={isClientAccount || isSoldOut || hasActiveBooking || bookingLoading || (showOTP && otp.length !== 6)}
                                 className={`w-full py-3 px-6 rounded-xl font-bold text-lg transition shadow-lg mb-4 ${
-                                    isSoldOut || hasActiveBooking || (successMsg && !showOTP && !isPaidEvent)
+                                    isClientAccount || isSoldOut || hasActiveBooking || (successMsg && !showOTP && !isPaidEvent)
                                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                         : 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-xl'
                                 }`}
                             >
                                 {bookingLoading ? 'Processing...' : (
-                                    hasActiveBooking
+                                    isClientAccount
+                                        ? 'Booking Disabled for Client Account'
+                                        : hasActiveBooking
                                         ? 'Already Booked'
                                         : showOTP
                                         ? (isPaidEvent ? 'Verify OTP & Pay' : 'Verify OTP & Book')

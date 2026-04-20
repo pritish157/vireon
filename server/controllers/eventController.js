@@ -1,81 +1,19 @@
 const Event = require('../models/Event');
+const User = require('../models/User');
+const { validateEventPayload } = require('../utils/eventPayload');
 
-const validateEventPayload = (payload, { isUpdate = false } = {}) => {
-    const errors = [];
-    const normalized = {};
+const escapeRegex = (value) => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-    const hasField = (field) => Object.prototype.hasOwnProperty.call(payload, field);
-
-    if (!isUpdate || hasField('title')) {
-        const title = String(payload.title || '').trim();
-        if (title.length < 3 || title.length > 120) {
-            errors.push('Title must be between 3 and 120 characters');
-        } else {
-            normalized.title = title;
-        }
+const buildDateRangeFilter = (dateStr) => {
+    const selectedDate = new Date(dateStr);
+    if (Number.isNaN(selectedDate.getTime())) {
+        return null;
     }
-
-    if (!isUpdate || hasField('description')) {
-        const description = String(payload.description || '').trim();
-        if (description.length < 10 || description.length > 2000) {
-            errors.push('Description must be between 10 and 2000 characters');
-        } else {
-            normalized.description = description;
-        }
-    }
-
-    if (!isUpdate || hasField('location')) {
-        const location = String(payload.location || '').trim();
-        if (location.length < 2 || location.length > 200) {
-            errors.push('Location must be between 2 and 200 characters');
-        } else {
-            normalized.location = location;
-        }
-    }
-
-    if (!isUpdate || hasField('category')) {
-        const category = String(payload.category || '').trim();
-        if (!category) {
-            errors.push('Category is required');
-        } else {
-            normalized.category = category;
-        }
-    }
-
-    if (!isUpdate || hasField('date')) {
-        const eventDate = new Date(payload.date);
-        if (Number.isNaN(eventDate.getTime())) {
-            errors.push('Please provide a valid event date');
-        } else if (eventDate < new Date()) {
-            errors.push('Event date cannot be in the past');
-        } else {
-            normalized.date = eventDate;
-        }
-    }
-
-    if (!isUpdate || hasField('totalSeats')) {
-        const totalSeats = Number(payload.totalSeats);
-        if (!Number.isInteger(totalSeats) || totalSeats <= 0) {
-            errors.push('Total seats must be a positive whole number');
-        } else {
-            normalized.totalSeats = totalSeats;
-        }
-    }
-
-    if (!isUpdate || hasField('ticketPrice')) {
-        const ticketPrice = Number(payload.ticketPrice ?? 0);
-        if (!Number.isFinite(ticketPrice) || ticketPrice < 0) {
-            errors.push('Ticket price cannot be negative');
-        } else {
-            normalized.ticketPrice = ticketPrice;
-        }
-    }
-
-    if (!isUpdate || hasField('image')) {
-        normalized.image = String(payload.image || '').trim();
-    }
-
-    return { errors, normalized };
+    const startOfDay = new Date(selectedDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(selectedDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    return { date: { $gte: startOfDay, $lte: endOfDay } };
 };
 
 exports.getEvents = async (req, res) => {
@@ -88,6 +26,79 @@ exports.getEvents = async (req, res) => {
         res.json(events);
     } catch (error) {
         res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+exports.getNearbyEvents = async (req, res) => {
+    try {
+        if (req.user.role === 'client') {
+            return res.status(403).json({ message: 'Client organizer accounts do not use nearby attendee events' });
+        }
+
+        const user = await User.findById(req.user.id).select('city district state stateCode country');
+
+        const commonParts = [];
+        if (req.query.category) {
+            commonParts.push({ category: req.query.category });
+        }
+        if (req.query.date) {
+            const dr = buildDateRangeFilter(req.query.date);
+            if (!dr) {
+                return res.status(400).json({ message: 'Please provide a valid date filter' });
+            }
+            commonParts.push(dr);
+        }
+
+        const withCommon = (regionFilter) =>
+            commonParts.length ? { $and: [regionFilter, ...commonParts] } : regionFilter;
+
+        const run = async (regionFilter) =>
+            Event.find(withCommon(regionFilter)).populate('createdBy', 'name email').sort({ date: 1 });
+
+        const stateCode = String(user?.stateCode || '').trim();
+        const district = String(user?.district || '').trim();
+        const stateName = String(user?.state || '').trim();
+        const city = String(user?.city || '').trim();
+
+        if (stateCode && district) {
+            let events = await run({ stateCode, district });
+            if (events.length === 0) {
+                events = await run({ stateCode });
+            }
+            return res.json(events);
+        }
+
+        if (stateName && district) {
+            const stateMatch = { state: new RegExp(`^${escapeRegex(stateName)}$`, 'i') };
+            const localityClauses = [
+                { district: new RegExp(`^${escapeRegex(district)}$`, 'i') },
+                ...(city
+                    ? [
+                          { city: new RegExp(`^${escapeRegex(city)}$`, 'i') },
+                          { location: new RegExp(escapeRegex(city), 'i') }
+                      ]
+                    : [])
+            ];
+            let events = await run({ $and: [stateMatch, { $or: localityClauses }] });
+            if (events.length === 0) {
+                events = await run(stateMatch);
+            }
+            return res.json(events);
+        }
+
+        if (stateCode) {
+            const events = await run({ stateCode });
+            return res.json(events);
+        }
+
+        if (stateName) {
+            const events = await run({ state: new RegExp(`^${escapeRegex(stateName)}$`, 'i') });
+            return res.json(events);
+        }
+
+        return res.json([]);
+    } catch (error) {
+        return res.status(500).json({ message: 'Server Error', error: error.message });
     }
 };
 
@@ -125,7 +136,15 @@ exports.updateEvent = async (req, res) => {
         const existingEvent = await Event.findById(req.params.id);
         if (!existingEvent) return res.status(404).json({ message: 'Event not found' });
 
-        const { errors, normalized } = validateEventPayload(req.body, { isUpdate: true });
+        const body = { ...req.body };
+        if (Object.prototype.hasOwnProperty.call(body, 'stateCode') && !Object.prototype.hasOwnProperty.call(body, 'district')) {
+            body.district = existingEvent.district;
+        }
+        if (Object.prototype.hasOwnProperty.call(body, 'district') && !Object.prototype.hasOwnProperty.call(body, 'stateCode')) {
+            body.stateCode = existingEvent.stateCode;
+        }
+
+        const { errors, normalized } = validateEventPayload(body, { isUpdate: true });
         if (errors.length > 0) {
             return res.status(400).json({ message: errors[0], errors });
         }

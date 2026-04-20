@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext } from '../context/authContext';
 import api from '../utils/axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaTicketAlt, FaTimesCircle } from 'react-icons/fa';
+import LocationSettingsCard from '../components/LocationSettingsCard';
+import NearbyEventsSection from '../components/NearbyEventsSection';
 
 const UserDashboard = () => {
     const { user } = useContext(AuthContext);
@@ -13,6 +15,14 @@ const UserDashboard = () => {
     useEffect(() => {
         if (!user) {
             navigate('/login');
+            return;
+        }
+        if (user.role === 'client') {
+            navigate('/client/dashboard');
+            return;
+        }
+        if (user.role === 'admin') {
+            navigate('/admin');
             return;
         }
         fetchBookings();
@@ -68,6 +78,10 @@ const UserDashboard = () => {
                 </div>
             </div>
 
+            <div className="mb-8">
+                <LocationSettingsCard />
+            </div>
+
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2 sm:gap-3">
                     <FaTicketAlt className="text-gray-700" /> My Booking Requests
@@ -89,6 +103,9 @@ const UserDashboard = () => {
                     {bookings.map((booking) => {
                         const event = getEventDetails(booking);
                         const eventId = getEventId(booking);
+                        const canUserCancel = booking.status !== 'cancelled'
+                            && booking.paymentStatus !== 'paid'
+                            && booking.paymentStatus !== 'refund_pending';
 
                         return (
                             <div key={booking._id} className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition border border-gray-100 flex flex-col">
@@ -139,12 +156,18 @@ const UserDashboard = () => {
                                             >
                                                 View Event
                                             </button>
-                                            <button
-                                                onClick={() => cancelBooking(booking._id)}
-                                                className="text-red-500 font-semibold text-sm hover:text-red-700 transition flex items-center gap-1"
-                                            >
-                                                <FaTimesCircle /> Cancel
-                                            </button>
+                                            {canUserCancel ? (
+                                                <button
+                                                    onClick={() => cancelBooking(booking._id)}
+                                                    className="text-red-500 font-semibold text-sm hover:text-red-700 transition flex items-center gap-1"
+                                                >
+                                                    <FaTimesCircle /> Cancel
+                                                </button>
+                                            ) : (
+                                                <span className="text-xs text-gray-500 text-right">
+                                                    Contact admin for refund/cancellation
+                                                </span>
+                                            )}
                                         </>
                                     ) : (
                                         <div className="w-full text-center text-sm text-gray-500 italic">Booking Cancelled</div>
@@ -155,6 +178,8 @@ const UserDashboard = () => {
                     })}
                 </div>
             )}
+
+            <NearbyEventsSection description="Fresh event suggestions matched to the city saved in your profile." />
         </div>
     );
 };

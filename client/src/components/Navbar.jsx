@@ -1,7 +1,8 @@
 import React, { useContext, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
-import { FaTicketAlt, FaUser, FaSignOutAlt, FaBars, FaTimes } from 'react-icons/fa';
+import { AuthContext } from '../context/authContext';
+import { useLocationPreferences } from '../context/useLocationPreferences';
+import { FaTicketAlt, FaUser, FaSignOutAlt, FaBars, FaTimes, FaMapMarkerAlt, FaChevronDown } from 'react-icons/fa';
 
 const Navbar = () => {
     const { user, logout } = useContext(AuthContext);
@@ -9,6 +10,7 @@ const Navbar = () => {
     const navigate = useNavigate();
     const [isOpen, setIsOpen] = useState(false);
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const { locationLabel, hasStoredLocation, openManualLocationModal, savingLocation } = useLocationPreferences();
 
     const goToEventsSection = () => {
         setIsOpen(false);
@@ -32,6 +34,12 @@ const Navbar = () => {
         setShowUserMenu(false);
     };
 
+    const dashboardPath = user?.role === 'admin'
+        ? '/admin'
+        : user?.role === 'client'
+            ? '/client/dashboard'
+            : '/dashboard';
+
     return (
         <nav className="bg-gradient-to-r from-gray-900 to-gray-800 shadow-lg sticky top-0 z-50">
             <div className="container mx-auto px-4">
@@ -42,10 +50,25 @@ const Navbar = () => {
                     </Link>
 
                     {/* Desktop Menu */}
-                    <div className="hidden md:flex items-center gap-8">
+                    <div className="hidden md:flex items-center gap-6">
                         <button onClick={goToEventsSection} className="text-gray-200 hover:text-white transition font-medium">
                             Events
                         </button>
+
+                        {user && user.role !== 'client' && (
+                            <button
+                                type="button"
+                                onClick={openManualLocationModal}
+                                disabled={savingLocation}
+                                className="flex max-w-[220px] items-center gap-2 rounded-full border border-white/15 bg-white/5 py-1.5 pl-3 pr-2 text-left text-sm text-gray-100 transition hover:border-white/30 hover:bg-white/10 disabled:opacity-60"
+                            >
+                                <FaMapMarkerAlt className="shrink-0 text-blue-300" />
+                                <span className="min-w-0 flex-1 truncate font-medium">
+                                    {hasStoredLocation ? locationLabel : 'Select location'}
+                                </span>
+                                <FaChevronDown className="shrink-0 text-[10px] opacity-70" />
+                            </button>
+                        )}
                         
                         {user ? (
                             <div className="relative">
@@ -68,7 +91,7 @@ const Navbar = () => {
                                             <p className="text-xs text-blue-600 font-semibold uppercase mt-1">{user.role}</p>
                                         </div>
                                 <Link
-                                    to={user.role === 'admin' ? '/admin' : '/dashboard'}
+                                    to={dashboardPath}
                                     className="block px-4 py-3 text-gray-900 hover:bg-gray-100 font-medium transition"
                                     onClick={() => {
                                         setIsOpen(false);
@@ -88,6 +111,9 @@ const Navbar = () => {
                             </div>
                         ) : (
                             <div className="flex items-center gap-3">
+                                <Link to="/client/login" className="text-gray-200 hover:text-white transition font-semibold px-3 py-2 text-sm border border-gray-600 rounded-lg hover:border-gray-400">
+                                    Client Portal
+                                </Link>
                                 <Link to="/login" className="text-gray-200 hover:text-white transition font-semibold px-4 py-2">
                                     Login
                                 </Link>
@@ -113,6 +139,23 @@ const Navbar = () => {
                         <button onClick={goToEventsSection} className="block text-gray-200 hover:text-white py-2 font-medium text-left w-full">
                             Events
                         </button>
+
+                        {user && user.role !== 'client' && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    openManualLocationModal();
+                                    setIsOpen(false);
+                                }}
+                                disabled={savingLocation}
+                                className="flex w-full items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-left text-sm text-gray-100"
+                            >
+                                <FaMapMarkerAlt className="text-blue-300" />
+                                <span className="min-w-0 flex-1 truncate font-medium">
+                                    {hasStoredLocation ? locationLabel : 'Select location'}
+                                </span>
+                            </button>
+                        )}
                         
                         {user ? (
                             <>
@@ -121,7 +164,7 @@ const Navbar = () => {
                                     <p className="text-gray-300 text-sm">{user.email}</p>
                                 </div>
                                 <Link
-                                    to={user.role === 'admin' ? '/admin' : '/dashboard'}
+                                    to={dashboardPath}
                                     className="block text-gray-200 hover:text-white py-2 font-medium"
                                     onClick={() => {
                                         setIsOpen(false);
@@ -139,6 +182,9 @@ const Navbar = () => {
                             </>
                         ) : (
                             <>
+                                <Link to="/client/login" className="block text-gray-200 hover:text-white py-2 font-medium" onClick={() => setIsOpen(false)}>
+                                    Client Portal
+                                </Link>
                                 <Link to="/login" className="block text-gray-200 hover:text-white py-2 font-medium" onClick={() => setIsOpen(false)}>
                                     Login
                                 </Link>

@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext } from '../context/authContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
@@ -54,8 +54,9 @@ const Register = () => {
                 await register(name.trim(), email.trim(), password);
                 setShowOTP(true);
             } else {
-                await verifyOTP(email.trim(), otp.trim());
-                navigate('/dashboard');
+                const data = await verifyOTP(email.trim(), otp.trim(), 'user');
+                if (data.role === 'client') navigate('/client/dashboard');
+                else navigate('/dashboard');
             }
         } catch (err) {
             setError(err);
@@ -145,9 +146,14 @@ const Register = () => {
             </form>
 
             {!showOTP && (
-                <p className="text-center mt-6 text-gray-600">
-                    Already have an account? <Link to="/login" className="text-gray-900 font-bold hover:underline">Sign in</Link>
-                </p>
+                <>
+                    <p className="text-center mt-6 text-gray-600">
+                        Already have an account? <Link to="/login" className="text-gray-900 font-bold hover:underline">Sign in</Link>
+                    </p>
+                    <p className="text-center mt-2 text-gray-500 text-sm">
+                        Event organizer? <Link to="/client/register" className="text-gray-800 font-semibold hover:underline">Client registration</Link>
+                    </p>
+                </>
             )}
         </div>
     );

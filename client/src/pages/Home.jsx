@@ -1,20 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useContext, useMemo, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import api from '../utils/axios';
 import { FaCalendarAlt, FaMapMarkerAlt, FaSearch, FaRegClock, FaTicketAlt, FaShieldAlt } from 'react-icons/fa';
 import EventCard from '../components/EventCard';
 import EventCardSkeleton from '../components/EventCardSkeleton';
 import EmptyState from '../components/EmptyState';
+import NearbyEventsSection from '../components/NearbyEventsSection';
+import EventCarousel from '../components/EventCarousel';
+import Footer from '../components/Footer';
+import { AuthContext } from '../context/authContext';
+import { useLocationPreferences } from '../context/useLocationPreferences';
 
 const Home = () => {
     const location = useLocation();
+    const { user } = useContext(AuthContext);
+    const { hasStoredLocation, locationLabel, openManualLocationModal } = useLocationPreferences();
     const [events, setEvents] = useState([]);
     const [search, setSearch] = useState('');
     const [category, setCategory] = useState('');
     const [sortBy, setSortBy] = useState('date');
     const [loading, setLoading] = useState(true);
+    const [browseMode, setBrowseMode] = useState('auto'); // auto | nearby | all
 
     const categories = ['Technology', 'Music', 'Business', 'Art', 'Sports'];
+
+    const canShowNearby = Boolean(user && user.role !== 'client');
+    const defaultMode = useMemo(() => {
+        if (browseMode !== 'auto') return browseMode;
+        if (canShowNearby && hasStoredLocation) return 'nearby';
+        return 'all';
+    }, [browseMode, canShowNearby, hasStoredLocation]);
 
     useEffect(() => {
         const timeoutId = setTimeout(() => {
@@ -145,10 +160,45 @@ const Home = () => {
             {/* Sorting Options */}
             <div id="events-section" className="mb-8 px-4 flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-extrabold text-gray-900">Upcoming Events</h2>
-                    <p className="text-gray-600 mt-1">{events.length} events found</p>
+                    <h2 className="text-3xl font-extrabold text-gray-900">Events</h2>
+                    {defaultMode === 'nearby' ? (
+                        <p className="text-gray-600 mt-1">
+                            Showing events near <span className="font-semibold text-gray-900">{locationLabel}</span>
+                        </p>
+                    ) : (
+                        <p className="text-gray-600 mt-1">{events.length} events found</p>
+                    )}
                 </div>
                 <div className="flex items-center gap-3">
+                    {canShowNearby && (
+                        <div className="hidden sm:flex items-center gap-2 mr-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!hasStoredLocation) openManualLocationModal();
+                                    setBrowseMode('nearby');
+                                }}
+                                className={`px-4 py-2 rounded-lg font-bold text-sm border transition ${
+                                    defaultMode === 'nearby'
+                                        ? 'bg-gray-900 text-white border-gray-900'
+                                        : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'
+                                }`}
+                            >
+                                Nearby
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setBrowseMode('all')}
+                                className={`px-4 py-2 rounded-lg font-bold text-sm border transition ${
+                                    defaultMode === 'all'
+                                        ? 'bg-gray-900 text-white border-gray-900'
+                                        : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'
+                                }`}
+                            >
+                                Browse all
+                            </button>
+                        </div>
+                    )}
                     <label className="text-sm font-semibold text-gray-700">Sort by:</label>
                     <select
                         value={sortBy}
@@ -162,41 +212,75 @@ const Home = () => {
                 </div>
             </div>
 
-            {/* Events Grid */}
-            {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-4">
-                    {Array(6).fill(0).map((_, i) => (
-                        <EventCardSkeleton key={i} />
-                    ))}
-                </div>
-            ) : events.length === 0 ? (
+            {/* Featured slider */}
+            {!loading && events.length > 0 && (
                 <div className="px-4">
-                    <EmptyState 
-                        title="No Events Found" 
-                        description={category ? `No ${category} events available right now. Try other categories!` : 'Try adjusting your search or filters to find what you\'re looking for.'} 
+                    <EventCarousel
+                        title="Featured this week"
+                        subtitle="A curated, smooth slideshow of popular upcoming events."
+                        events={events.slice(0, 10)}
+                        renderItem={(event) => <EventCard event={event} />}
                     />
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-4">
-                    {events.map(event => (
-                        <EventCard key={event._id} event={event} />
-                    ))}
                 </div>
             )}
 
-            {/* Footer Section */}
-            <footer className="mt-auto pt-16 pb-8 border-t border-gray-200 text-center mt-20">
-                <div className="flex justify-center items-center gap-2 mb-4">
-                    <FaTicketAlt className="text-gray-800 text-2xl" />
-                    <span className="text-xl font-bold text-gray-900">Vireon</span>
+            {/* Primary listing: nearby-first */}
+            {defaultMode === 'nearby' ? (
+                <div className="px-4 mt-10">
+                    <NearbyEventsSection
+                        title="Events near you"
+                        description="We’re showing events matched to your saved location—"
+                        variant="carousel"
+                    />
+                    {!hasStoredLocation && (
+                        <div className="mt-8 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+                            <h3 className="text-xl font-bold text-gray-900">Set your location to personalize Home</h3>
+                            <p className="mt-2 text-sm text-gray-600">
+                                Choose your state and district to see nearby events instead of a long generic list.
+                            </p>
+                            <button
+                                type="button"
+                                onClick={openManualLocationModal}
+                                className="mt-5 rounded-xl bg-gray-900 px-5 py-3 font-bold text-white transition hover:bg-black"
+                            >
+                                Choose location
+                            </button>
+                        </div>
+                    )}
                 </div>
-                <p className="text-gray-500 text-sm mb-6 max-w-md mx-auto">
-                    The simplest, most dynamic way to manage, discover, and host world-class events in your local city. Let's make memories together.
-                </p>
-                <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">
-                    &copy; {new Date().getFullYear()} Vireon Platform. All rights reserved.
-                </div>
-            </footer>
+            ) : (
+                <>
+                    {/* Events Grid (Browse all) */}
+                    {loading ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-4">
+                            {Array(6).fill(0).map((_, i) => (
+                                <EventCardSkeleton key={i} />
+                            ))}
+                        </div>
+                    ) : events.length === 0 ? (
+                        <div className="px-4">
+                            <EmptyState
+                                title="No Events Found"
+                                description={
+                                    category
+                                        ? `No ${category} events available right now. Try other categories!`
+                                        : "Try adjusting your search or filters to find what you're looking for."
+                                }
+                            />
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-4">
+                            {events.map((event) => (
+                                <EventCard key={event._id} event={event} />
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
+
+            <div className="mt-auto">
+                <Footer />
+            </div>
         </div>
     );
 };

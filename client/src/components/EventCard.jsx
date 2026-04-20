@@ -60,9 +60,16 @@ const EventCard = ({ event }) => {
                             })}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <FaMapMarkerAlt className="text-red-600" />
+                            <FaMapMarkerAlt className="text-red-600 shrink-0" />
                             <span className="truncate">{event.location}</span>
                         </div>
+                        {(event.city || event.district || event.state) && (
+                            <div className="flex items-start gap-2 text-xs text-gray-500 pl-7">
+                                <span className="line-clamp-2">
+                                    {[event.city, event.district, event.state].filter(Boolean).join(' · ')}
+                                </span>
+                            </div>
+                        )}
                         <div className="flex items-center gap-2">
                             <FaChair className="text-purple-600" />
                             <span>{event.availableSeats} of {event.totalSeats} seats</span>
