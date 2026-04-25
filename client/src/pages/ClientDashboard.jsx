@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useContext } from 'react';
+import { motion } from 'framer-motion';
 import { AuthContext } from '../context/authContext';
 import api from '../utils/axios';
 import { useNavigate } from 'react-router-dom';
 import EventRegionFields from '../components/EventRegionFields';
+import useIsMobileViewport from '../hooks/useIsMobileViewport';
+import MobileClientDashboardView from '../components/mobile/MobileClientDashboardView';
 
 const initialFormData = {
     title: '',
@@ -41,8 +44,12 @@ const ClientDashboard = () => {
     const [selectedImageName, setSelectedImageName] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
+    const isMobile = useIsMobileViewport();
 
     useEffect(() => {
+        if (isMobile) {
+            return;
+        }
         if (!user) {
             navigate('/client/login');
             return;
@@ -52,7 +59,7 @@ const ClientDashboard = () => {
             return;
         }
         fetchData();
-    }, [user, navigate]);
+    }, [isMobile, user, navigate]);
 
     const fetchData = async () => {
         try {
@@ -174,7 +181,11 @@ const ClientDashboard = () => {
     };
 
     if (loading) {
-        return <div className="text-center py-20 text-xl font-semibold">Loading client dashboard...</div>;
+        return <div className="py-20 text-center text-xl font-semibold">Loading client dashboard...</div>;
+    }
+
+    if (isMobile) {
+        return <MobileClientDashboardView />;
     }
 
     const pendingRequests = requests.filter((req) => req.status === 'pending').length;
@@ -182,57 +193,64 @@ const ClientDashboard = () => {
     const rejectedRequests = requests.filter((req) => req.status === 'rejected').length;
 
     return (
-        <div className="max-w-7xl mx-auto">
-            <div className="bg-black text-white rounded-2xl p-6 sm:p-8 mb-8 shadow-lg flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
-                <div>
-                    <h1 className="text-2xl sm:text-3xl font-extrabold mb-2">Client Dashboard</h1>
-                    <p className="text-gray-300">Submit events and manage admin approval requests.</p>
+        <div className="mx-auto max-w-7xl">
+            <motion.div
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.24 }}
+                className="mb-5 rounded-[28px] bg-black p-5 text-white shadow-lg md:mb-8 md:rounded-2xl md:p-8"
+            >
+                <div className="flex flex-col gap-5 text-center md:flex-row md:items-center md:justify-between md:text-left">
+                    <div>
+                        <h1 className="mb-2 text-2xl font-extrabold sm:text-3xl">Client Dashboard</h1>
+                        <p className="text-gray-300">Submit events and manage admin approval requests.</p>
+                    </div>
+                    <button
+                        onClick={() => (showEventForm ? resetForm() : openNewRequestForm())}
+                        className="w-full rounded-lg bg-white px-6 py-3 font-bold text-black shadow-md transition hover:bg-gray-100 md:w-auto"
+                    >
+                        {showEventForm ? 'Close Form' : (editingEventId ? 'Edit Request Form' : '+ Request New Event')}
+                    </button>
                 </div>
-                <button
-                    onClick={() => (showEventForm ? resetForm() : openNewRequestForm())}
-                    className="w-full md:w-auto bg-white text-black font-bold py-3 px-6 rounded-lg hover:bg-gray-100 transition shadow-md"
-                >
-                    {showEventForm ? 'Close Form' : (editingEventId ? 'Edit Request Form' : '+ Request New Event')}
-                </button>
-            </div>
+            </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <p className="text-gray-500 text-sm font-bold uppercase tracking-wider mb-1">Pending Requests</p>
+            <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <p className="mb-1 text-sm font-bold uppercase tracking-wider text-gray-500">Pending Requests</p>
                     <h3 className="text-3xl font-black text-yellow-600">{pendingRequests}</h3>
                 </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <p className="text-gray-500 text-sm font-bold uppercase tracking-wider mb-1">Approved Requests</p>
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <p className="mb-1 text-sm font-bold uppercase tracking-wider text-gray-500">Approved Requests</p>
                     <h3 className="text-3xl font-black text-green-600">{approvedRequests}</h3>
                 </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <p className="text-gray-500 text-sm font-bold uppercase tracking-wider mb-1">Rejected Requests</p>
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <p className="mb-1 text-sm font-bold uppercase tracking-wider text-gray-500">Rejected Requests</p>
                     <h3 className="text-3xl font-black text-red-600">{rejectedRequests}</h3>
                 </div>
             </div>
 
             {errorMsg && (
-                <div className="bg-red-50 text-red-700 border border-red-200 p-4 rounded-lg mb-6">
+                <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
                     {errorMsg}
                 </div>
             )}
             {successMsg && (
-                <div className="bg-green-50 text-green-700 border border-green-200 p-4 rounded-lg mb-6">
+                <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 text-green-700">
                     {successMsg}
                 </div>
             )}
 
             {showEventForm && (
-                <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 mb-8">
-                    <h2 className="text-2xl font-bold mb-6 text-gray-800">
+                <div className="mb-8 rounded-[28px] border border-gray-100 bg-white p-5 shadow-sm md:rounded-2xl md:p-8">
+                    <h2 className="mb-6 text-2xl font-bold text-gray-800">
                         {editingEventId ? 'Request Event Edit Approval' : 'Submit New Event for Approval'}
                     </h2>
-                    <form onSubmit={handleSubmitRequest} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <form onSubmit={handleSubmitRequest} className="grid grid-cols-1 gap-6 md:grid-cols-2">
                         <input
                             required
                             type="text"
                             placeholder="Event Title"
-                            className="border px-4 py-3 rounded-lg focus:ring-2 focus:ring-gray-700 outline-none transition"
+                            className="rounded-lg border px-4 py-3 outline-none transition focus:ring-2 focus:ring-gray-700"
                             value={formData.title}
                             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                         />
@@ -240,14 +258,14 @@ const ClientDashboard = () => {
                             required
                             type="text"
                             placeholder="Category"
-                            className="border px-4 py-3 rounded-lg focus:ring-2 focus:ring-gray-700 outline-none transition"
+                            className="rounded-lg border px-4 py-3 outline-none transition focus:ring-2 focus:ring-gray-700"
                             value={formData.category}
                             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                         />
                         <input
                             required
                             type="date"
-                            className="border px-4 py-3 rounded-lg focus:ring-2 focus:ring-gray-700 outline-none transition"
+                            className="rounded-lg border px-4 py-3 outline-none transition focus:ring-2 focus:ring-gray-700"
                             value={formData.date}
                             onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                         />
@@ -258,7 +276,7 @@ const ClientDashboard = () => {
                             step="1"
                             type="number"
                             placeholder="Total Seats"
-                            className="border px-4 py-3 rounded-lg focus:ring-2 focus:ring-gray-700 outline-none transition"
+                            className="rounded-lg border px-4 py-3 outline-none transition focus:ring-2 focus:ring-gray-700"
                             value={formData.totalSeats}
                             onChange={(e) => setFormData({ ...formData, totalSeats: e.target.value })}
                         />
@@ -268,7 +286,7 @@ const ClientDashboard = () => {
                             step="1"
                             type="number"
                             placeholder="Ticket Price (0 for free)"
-                            className="border px-4 py-3 rounded-lg focus:ring-2 focus:ring-gray-700 outline-none transition"
+                            className="rounded-lg border px-4 py-3 outline-none transition focus:ring-2 focus:ring-gray-700"
                             value={formData.ticketPrice}
                             onChange={(e) => setFormData({ ...formData, ticketPrice: e.target.value })}
                         />
@@ -276,25 +294,25 @@ const ClientDashboard = () => {
                             <input
                                 type="text"
                                 placeholder="Image URL (optional if uploading from local storage)"
-                                className="w-full border px-4 py-3 rounded-lg focus:ring-2 focus:ring-gray-700 outline-none transition"
+                                className="w-full rounded-lg border px-4 py-3 outline-none transition focus:ring-2 focus:ring-gray-700"
                                 value={isLocalImageData(formData.image) ? '' : formData.image}
                                 onChange={(e) => {
                                     setFormData({ ...formData, image: e.target.value });
                                     setSelectedImageName('');
                                 }}
                             />
-                            <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
                                 <input
                                     type="file"
                                     accept="image/*"
                                     onChange={handleImageFileChange}
-                                    className="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+                                    className="w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-gray-700 hover:file:bg-gray-200"
                                 />
                                 {formData.image && (
                                     <button
                                         type="button"
                                         onClick={clearSelectedImage}
-                                        className="sm:w-auto bg-gray-100 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-200 transition"
+                                        className="rounded-lg bg-gray-100 px-4 py-2 font-bold text-gray-700 transition hover:bg-gray-200 sm:w-auto"
                                     >
                                         Remove Image
                                     </button>
@@ -309,7 +327,7 @@ const ClientDashboard = () => {
                                 <img
                                     src={formData.image}
                                     alt="Event preview"
-                                    className="mt-3 w-full max-w-xs h-40 object-cover rounded-lg border border-gray-200"
+                                    className="mt-3 h-40 w-full max-w-xs rounded-lg border border-gray-200 object-cover"
                                 />
                             )}
                         </div>
@@ -318,28 +336,28 @@ const ClientDashboard = () => {
                                 required
                                 minLength={15}
                                 placeholder="What exactly are you changing and why? (required for edit approval)"
-                                className="border px-4 py-3 rounded-lg md:col-span-2 h-28 focus:ring-2 focus:ring-gray-700 outline-none transition"
+                                className="h-28 rounded-lg border px-4 py-3 outline-none transition focus:ring-2 focus:ring-gray-700 md:col-span-2"
                                 value={formData.editRequestReason}
                                 onChange={(e) => setFormData({ ...formData, editRequestReason: e.target.value })}
                             />
                         )}
                         {editingEventId && (
-                            <p className="md:col-span-2 text-sm text-gray-500 -mt-3">
+                            <p className="-mt-3 text-sm text-gray-500 md:col-span-2">
                                 This note is visible to admins and must explain the exact changes requested.
                             </p>
                         )}
                         <textarea
                             required
                             placeholder="Event Description"
-                            className="border px-4 py-3 rounded-lg md:col-span-2 h-32 focus:ring-2 focus:ring-gray-700 outline-none transition"
+                            className="h-32 rounded-lg border px-4 py-3 outline-none transition focus:ring-2 focus:ring-gray-700 md:col-span-2"
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         />
-                        <div className="md:col-span-2 flex flex-col sm:flex-row gap-3 mt-2">
+                        <div className="mt-2 flex flex-col gap-3 md:col-span-2 sm:flex-row">
                             <button
                                 type="submit"
                                 disabled={submitting}
-                                className="flex-1 bg-gray-900 text-white font-bold py-3 rounded-lg hover:bg-black transition shadow-md disabled:opacity-70"
+                                className="flex-1 rounded-lg bg-gray-900 py-3 font-bold text-white shadow-md transition hover:bg-black disabled:opacity-70"
                             >
                                 {submitting
                                     ? 'Submitting...'
@@ -349,7 +367,7 @@ const ClientDashboard = () => {
                                 <button
                                     type="button"
                                     onClick={resetForm}
-                                    className="sm:w-auto bg-gray-100 text-gray-700 font-bold py-3 px-6 rounded-lg hover:bg-gray-200 transition"
+                                    className="rounded-lg bg-gray-100 px-6 py-3 font-bold text-gray-700 transition hover:bg-gray-200 sm:w-auto"
                                 >
                                     Cancel Edit Request
                                 </button>
@@ -359,18 +377,18 @@ const ClientDashboard = () => {
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
                 <div className="flex flex-col">
-                    <h2 className="text-2xl font-bold mb-6 text-gray-800">Approved Events</h2>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                        <ul className="divide-y divide-gray-100 max-h-[650px] overflow-y-auto">
+                    <h2 className="mb-6 text-2xl font-bold text-gray-800">Approved Events</h2>
+                    <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+                        <ul className="max-h-[650px] divide-y divide-gray-100 overflow-y-auto">
                             {events.length === 0 ? (
-                                <li className="p-6 text-gray-500 text-center">No approved events yet.</li>
+                                <li className="p-6 text-center text-gray-500">No approved events yet.</li>
                             ) : (
                                 events.map((event) => (
-                                    <li key={event._id} className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-gray-50 transition">
+                                    <li key={event._id} className="flex flex-col items-start gap-4 p-5 transition hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between">
                                         <div>
-                                            <h4 className="font-bold text-gray-900 mb-1 leading-tight">{event.title}</h4>
+                                            <h4 className="mb-1 font-bold leading-tight text-gray-900">{event.title}</h4>
                                             <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
                                                 <span>{new Date(event.date).toLocaleDateString()}</span>
                                                 <span>{event.category}</span>
@@ -380,7 +398,7 @@ const ClientDashboard = () => {
                                         </div>
                                         <button
                                             onClick={() => openEditRequestForm(event)}
-                                            className="w-full sm:w-auto text-blue-600 hover:text-white hover:bg-blue-600 border border-blue-200 px-4 py-2 rounded-lg text-sm font-bold transition shadow-sm"
+                                            className="w-full rounded-lg border border-blue-200 px-4 py-2 text-sm font-bold text-blue-600 shadow-sm transition hover:bg-blue-600 hover:text-white sm:w-auto"
                                         >
                                             Request Edit
                                         </button>
@@ -392,19 +410,19 @@ const ClientDashboard = () => {
                 </div>
 
                 <div className="flex flex-col">
-                    <h2 className="text-2xl font-bold mb-6 text-gray-800">Approval Requests</h2>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                        <ul className="divide-y divide-gray-100 max-h-[650px] overflow-y-auto">
+                    <h2 className="mb-6 text-2xl font-bold text-gray-800">Approval Requests</h2>
+                    <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+                        <ul className="max-h-[650px] divide-y divide-gray-100 overflow-y-auto">
                             {requests.length === 0 ? (
-                                <li className="p-6 text-gray-500 text-center">No requests submitted yet.</li>
+                                <li className="p-6 text-center text-gray-500">No requests submitted yet.</li>
                             ) : (
                                 requests.map((request) => (
-                                    <li key={request._id} className="p-5 hover:bg-gray-50 transition">
-                                        <div className="flex items-start justify-between gap-3 mb-2">
-                                            <h4 className="font-bold text-gray-900 leading-tight">
+                                    <li key={request._id} className="p-5 transition hover:bg-gray-50">
+                                        <div className="mb-2 flex items-start justify-between gap-3">
+                                            <h4 className="font-bold leading-tight text-gray-900">
                                                 {request.proposedEventData?.title || request.eventId?.title || 'Untitled Event'}
                                             </h4>
-                                            <span className={`px-2 py-1 text-[10px] font-black rounded uppercase tracking-wider ${statusClassName(request.status)}`}>
+                                            <span className={`rounded px-2 py-1 text-[10px] font-black uppercase tracking-wider ${statusClassName(request.status)}`}>
                                                 {request.status}
                                             </span>
                                         </div>
@@ -415,7 +433,7 @@ const ClientDashboard = () => {
                                             <strong>Submitted:</strong> {new Date(request.createdAt).toLocaleString()}
                                         </p>
                                         {request.requestType === 'edit' && request.editRequestReason && (
-                                            <p className="text-sm text-gray-700 mt-2 bg-blue-50 p-2 rounded border border-blue-100">
+                                            <p className="mt-2 rounded border border-blue-100 bg-blue-50 p-2 text-sm text-gray-700">
                                                 <strong>Edit Note:</strong> {request.editRequestReason}
                                             </p>
                                         )}
@@ -425,7 +443,7 @@ const ClientDashboard = () => {
                                             </p>
                                         )}
                                         {request.reviewNote && (
-                                            <p className="text-sm text-gray-700 mt-2 bg-gray-50 p-2 rounded border border-gray-100">
+                                            <p className="mt-2 rounded border border-gray-100 bg-gray-50 p-2 text-sm text-gray-700">
                                                 <strong>Admin Note:</strong> {request.reviewNote}
                                             </p>
                                         )}

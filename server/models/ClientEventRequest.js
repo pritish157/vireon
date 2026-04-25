@@ -4,30 +4,32 @@ const clientEventRequestSchema = new mongoose.Schema({
     requestType: {
         type: String,
         enum: ['create', 'edit'],
-        required: true
+        required: true,
+        index: true
     },
     status: {
         type: String,
         enum: ['pending', 'approved', 'rejected'],
-        default: 'pending'
+        default: 'pending',
+        index: true
     },
     submittedBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Client',
-        required: true
+        required: true,
+        index: true
     },
     eventId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Event',
-        default: null
+        default: null,
+        index: true
     },
     approvedEventId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Event',
         default: null
     },
-    // Full event snapshot (region, seats, etc.). Use Mixed so Mongoose does not strip fields
-    // like stateCode/district that validateEventPayload requires on admin approval.
     proposedEventData: { type: mongoose.Schema.Types.Mixed, required: true },
     editRequestReason: { type: String, trim: true, default: '' },
     reviewNote: { type: String, trim: true, default: '' },
@@ -38,5 +40,8 @@ const clientEventRequestSchema = new mongoose.Schema({
     },
     reviewedAt: { type: Date, default: null }
 }, { timestamps: true });
+
+clientEventRequestSchema.index({ submittedBy: 1, createdAt: -1 });
+clientEventRequestSchema.index({ status: 1, createdAt: -1 });
 
 module.exports = mongoose.model('ClientEventRequest', clientEventRequestSchema);

@@ -1,15 +1,19 @@
 const Razorpay = require('razorpay');
+const { env } = require('../config/env');
+const { AppError } = require('./appError');
 
-const hasRazorpayConfig = () => Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
+const hasRazorpayConfig = () => Boolean(env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET);
 
 const getRazorpayInstance = () => {
     if (!hasRazorpayConfig()) {
-        throw new Error('Razorpay credentials are not configured');
+        throw new AppError(503, 'Razorpay credentials are not configured', {
+            code: 'RAZORPAY_NOT_CONFIGURED'
+        });
     }
 
     return new Razorpay({
-        key_id: process.env.RAZORPAY_KEY_ID,
-        key_secret: process.env.RAZORPAY_KEY_SECRET
+        key_id: env.RAZORPAY_KEY_ID,
+        key_secret: env.RAZORPAY_KEY_SECRET
     });
 };
 

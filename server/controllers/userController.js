@@ -1,6 +1,13 @@
 const User = require('../models/User');
+const { asyncHandler } = require('../middleware/asyncHandler');
+const { sendSuccess } = require('../utils/apiResponse');
+const { AppError } = require('../utils/appError');
 const { reverseGeocodeCoordinates } = require('../utils/geocoding');
-const { resolveIndiaFromGeocodeParts, isValidIndianRegion, getStateName } = require('../utils/indiaRegions');
+const {
+    resolveIndiaFromGeocodeParts,
+    isValidIndianRegion,
+    getStateName
+} = require('../utils/indiaRegions');
 
 const buildUserResponse = (user) => ({
     _id: user.id,
@@ -16,77 +23,68 @@ const buildUserResponse = (user) => ({
     country: user.country || 'India'
 });
 
-exports.saveUserLocation = async (req, res) => {
-    try {
-        if (req.user.role === 'client') {
-            return res.status(403).json({ message: 'Client organizer accounts do not support attendee location preferences' });
-        }
+exports.saveUserLocation = asyncHandler(async (req, res) => {
+    if (req.user.role === 'client') {
+        throw new AppError(403, 'Client organizer accounts do not support attendee location preferences', {
+            code: 'CLIENT_LOCATION_DISABLED'
+        });
+    }
 
-        const user = await User.findById(req.user.id);
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
+    const user = await User.findById(req.user.id);
+    if (!user) {
+        throw new AppError(404, 'User not found', { code: 'USER_NOT_FOUND' });
+    }
 
-        const rawLatitude = req.body.latitude;
-        const rawLongitude = req.body.longitude;
-        const hasCoordinates = rawLatitude !== undefined && rawLongitude !== undefined;
+    const rawLatitude = req.body.latitude;
+    const rawLongitude = req.body.longitude;
+    const hasCoordinates = rawLatitude !== undefined && rawLongitude !== undefined;
 
-        if (hasCoordinates) {
-            const latitude = Number(rawLatitude);
-            const longitude = Number(rawLongitude);
+    if (hasCoordinates) {
+        const latitude = Number(rawLatitude);
+        const longitude = Number(rawLongitude);
+        const geo = await reverseGeocodeCoordinates({ latitude, longitude });
+        const resolved = resolveIndiaFromGeocodeParts(geo);
 
-            if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-                return res.status(400).json({ message: 'Latitude and longitude must be valid numbers' });
-            }
-
-            const geo = await reverseGeocodeCoordinates({ latitude, longitude });
-            const resolved = resolveIndiaFromGeocodeParts(geo);
-
-            user.latitude = latitude;
-            user.longitude = longitude;
-            user.country = resolved.country || 'India';
-            user.stateCode = resolved.stateCode || '';
-            user.state = resolved.state || '';
-            user.district = resolved.district || '';
-            user.city = resolved.city || '';
-            await user.save();
-
-            return res.json({
-                message: 'Location updated successfully',
-                user: buildUserResponse(user)
-            });
-        }
-
-        const stateCode = String(req.body.stateCode || '').trim().toUpperCase();
-        const district = String(req.body.district || '').trim();
-        const city = String(req.body.city || '').trim();
-
-        if (!stateCode || stateCode.length < 2) {
-            return res.status(400).json({ message: 'Please select a state' });
-        }
-
-        if (!district) {
-            return res.status(400).json({ message: 'Please select a district' });
-        }
-
-        if (!isValidIndianRegion(stateCode, district)) {
-            return res.status(400).json({ message: 'District does not belong to the selected state' });
-        }
-
-        user.country = 'India';
-        user.stateCode = stateCode;
-        user.state = getStateName(stateCode);
-        user.district = district;
-        user.city = city;
-        user.latitude = null;
-        user.longitude = null;
+        user.latitude = latitude;
+        user.longitude = longitude;
+        user.country = resolved.country || 'India';
+        user.stateCode = resolved.stateCode || '';
+        user.state = resolved.state || '';
+        user.district = resolved.district || '';
+        user.city = resolved.city || '';
         await user.save();
 
-        return res.json({
-            message: 'Location preferences updated successfully',
-            user: buildUserResponse(user)
+        return sendSuccess(res, {
+            message: 'Location updated successfully',
+            data: {
+                user: buildUserResponse(user)
+            }
         });
-    } catch (error) {
-        return res.status(500).json({ message: 'Failed to save user location', error: error.message });
     }
-};
+
+    const stateCode = String(req.body.stateCode || '').trim().toUpperCase();
+    const district = String(req.body.district || '').trim();
+    const city = String(req.body.city || '').trim();
+
+    if (!isValidIndianRegion(stateCode, district)) {
+        throw new AppError(400, 'District does not belong to the selected state', {
+            code: 'INVALID_REGION'
+        });
+    }
+
+    user.country = 'India';
+    user.stateCode = stateCode;
+    user.state = getStateName(stateCode);
+    user.district = district;
+    user.city = city;
+    user.latitude = null;
+    user.longitude = null;
+    await user.save();
+
+    return sendSuccess(res, {
+        message: 'Location preferences updated successfully',
+        data: {
+            user: buildUserResponse(user)
+        }
+    });
+});

@@ -6,16 +6,16 @@ export default function Footer() {
     const year = new Date().getFullYear();
 
     return (
-        <footer className="mt-16 border-t border-gray-200 bg-white">
-            <div className="mx-auto max-w-7xl px-4 py-14">
+        <footer className="mt-16 border-t border-gray-200 bg-white/90 backdrop-blur">
+            <div className="mx-auto max-w-7xl px-4 py-12 md:py-14">
                 <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-4">
                     <div>
                         <div className="flex items-center gap-2">
-                            <FaTicketAlt className="text-gray-900 text-2xl" />
+                            <FaTicketAlt className="text-2xl text-gray-900" />
                             <span className="text-xl font-black text-gray-900">Vireon</span>
                         </div>
                         <p className="mt-4 text-sm leading-6 text-gray-600">
-                            Discover and book events with a clean, secure, location-aware experience for users—and a simple
+                            Discover and book events with a clean, secure, location-aware experience for users and a simple
                             approval workflow for organizers.
                         </p>
                         <div className="mt-6 flex flex-col gap-2 text-sm text-gray-700">
@@ -63,7 +63,7 @@ export default function Footer() {
                     <div>
                         <p className="text-xs font-black uppercase tracking-[0.25em] text-gray-500">Help & Support</p>
                         <ul className="mt-4 space-y-3 text-sm text-gray-700">
-                            <li className="font-medium">Support hours: Mon–Sat, 10:00–18:00 IST</li>
+                            <li className="font-medium">Support hours: Mon-Sat, 10:00-18:00 IST</li>
                             <li className="font-medium">Response SLA: within 24 hours</li>
                             <li className="font-medium">For refunds: contact support with your booking ID</li>
                             <li>
@@ -95,7 +95,7 @@ export default function Footer() {
 
                 <div className="mt-12 flex flex-col gap-3 border-t border-gray-100 pt-8 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm font-semibold text-gray-600">
-                        © {year} Vireon. All rights reserved.
+                        Copyright {year} Vireon. All rights reserved.
                     </p>
                     <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
                         <Link className="font-semibold text-gray-700 hover:underline" to="/terms">
@@ -113,4 +113,3 @@ export default function Footer() {
         </footer>
     );
 }
-

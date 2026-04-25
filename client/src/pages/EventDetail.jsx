@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import api from '../utils/axios';
 import { AuthContext } from '../context/authContext';
 import { FaCalendarAlt, FaMapMarkerAlt, FaChair, FaMoneyBillWave, FaArrowLeft } from 'react-icons/fa';
@@ -34,6 +35,7 @@ const EventDetail = () => {
     const [showOTP, setShowOTP] = useState(false);
     const [error, setError] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
+    const [showFullDescription, setShowFullDescription] = useState(false);
 
     const markOrderFailed = async (bookingId) => {
         if (!bookingId) {
@@ -199,8 +201,8 @@ const EventDetail = () => {
         }
     };
 
-    if (loading) return <div className="text-center py-20 text-xl font-semibold">Loading...</div>;
-    if (error && !event) return <div className="text-center py-20 text-xl text-red-500">{error || 'Event not found'}</div>;
+    if (loading) return <div className="py-20 text-center text-xl font-semibold">Loading...</div>;
+    if (error && !event) return <div className="py-20 text-center text-xl text-red-500">{error || 'Event not found'}</div>;
 
     const isSoldOut = event.availableSeats <= 0;
     const isPaidEvent = event.ticketPrice > 0;
@@ -209,88 +211,123 @@ const EventDetail = () => {
     const bookingStatusLabel = existingBooking?.status === 'confirmed'
         ? 'You already have a confirmed booking for this event.'
         : 'You already have a pending booking for this event.';
+    const bookingDisabled = isClientAccount || isSoldOut || hasActiveBooking || bookingLoading || (showOTP && otp.length !== 6);
+    const bookingLabel = bookingLoading
+        ? 'Processing...'
+        : isClientAccount
+            ? 'Booking Disabled for Client Account'
+            : hasActiveBooking
+                ? 'Already Booked'
+                : showOTP
+                    ? (isPaidEvent ? 'Verify OTP & Pay' : 'Verify OTP & Book')
+                    : (successMsg && !showOTP && !isPaidEvent ? 'Booked' : (isSoldOut ? 'Sold Out' : 'Book Now'));
+    const descriptionIsLong = String(event.description || '').length > 180;
+    const displayedDescription = showFullDescription || !descriptionIsLong
+        ? event.description
+        : `${String(event.description).slice(0, 180).trim()}...`;
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8">
-            <div className="max-w-6xl mx-auto px-4">
+        <div className="min-h-screen bg-gray-50 py-3 md:py-8">
+            <div className="mx-auto max-w-6xl px-4">
                 <button
                     onClick={() => navigate('/')}
-                    className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 font-medium transition"
+                    className="mb-5 flex items-center gap-2 text-sm font-bold text-gray-600 transition hover:text-gray-900 md:mb-6 md:text-base md:font-medium"
                 >
                     <FaArrowLeft /> Back to Events
                 </button>
 
-                <div className="grid md:grid-cols-3 gap-8">
-                    <div className="md:col-span-2">
-                        <div className="rounded-2xl overflow-hidden shadow-lg bg-white mb-8">
+                <div className="grid gap-8 md:grid-cols-3">
+                    <motion.div
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.24 }}
+                        className="order-2 md:order-1 md:col-span-2"
+                    >
+                        <div className="mb-6 overflow-hidden rounded-[28px] bg-white shadow-lg md:mb-8 md:rounded-2xl">
                             {event.image ? (
-                                <img src={event.image} alt={event.title} className="w-full h-96 object-cover" />
+                                <img src={event.image} alt={event.title} loading="lazy" className="h-[260px] w-full object-cover md:h-96" />
                             ) : (
-                                <div className="w-full h-96 bg-gradient-to-br from-gray-900 to-gray-700 flex items-center justify-center text-white/50 text-6xl font-black uppercase tracking-widest">
+                                <div className="flex h-[260px] w-full items-center justify-center bg-gradient-to-br from-gray-900 to-gray-700 text-6xl font-black uppercase tracking-widest text-white/50 md:h-96">
                                     {event.category}
                                 </div>
                             )}
                         </div>
 
-                        <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
-                            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-                                <div className="inline-block bg-blue-100 text-blue-800 text-xs font-bold px-4 py-2 rounded-full uppercase tracking-wide">
+                        <div className="mb-6 rounded-[28px] bg-white p-5 shadow-lg md:mb-8 md:rounded-2xl md:p-8">
+                            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+                                <div className="inline-block rounded-full bg-blue-100 px-4 py-2 text-xs font-bold uppercase tracking-wide text-blue-800">
                                     {event.category}
                                 </div>
                             </div>
 
-                            <h1 className="text-4xl font-extrabold text-gray-900 mb-4">{event.title}</h1>
-                            <p className="text-gray-600 text-lg leading-relaxed mb-8">{event.description}</p>
+                            <h1 className="mb-4 text-3xl font-extrabold text-gray-900 md:text-4xl">{event.title}</h1>
+                            <div className="mb-8">
+                                <p className="text-base leading-relaxed text-gray-600 md:text-lg">{displayedDescription}</p>
+                                {descriptionIsLong && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowFullDescription((current) => !current)}
+                                        className="mt-3 inline-flex rounded-full bg-slate-100 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-700 md:hidden"
+                                    >
+                                        {showFullDescription ? 'Show less' : 'Read more'}
+                                    </button>
+                                )}
+                            </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                                <div className="bg-gray-50 p-4 rounded-xl">
-                                    <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Price</p>
+                            <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+                                <div className="rounded-2xl bg-gray-50 p-4 md:rounded-xl">
+                                    <p className="mb-1 text-xs font-semibold uppercase text-gray-500">Price</p>
                                     <p className="text-2xl font-bold text-gray-900">
                                         {event.ticketPrice === 0 ? <span className="text-green-600">Free</span> : `Rs. ${event.ticketPrice}`}
                                     </p>
                                 </div>
-                                <div className="bg-gray-50 p-4 rounded-xl">
-                                    <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Date</p>
+                                <div className="rounded-2xl bg-gray-50 p-4 md:rounded-xl">
+                                    <p className="mb-1 text-xs font-semibold uppercase text-gray-500">Date</p>
                                     <p className="text-lg font-bold text-gray-900">{new Date(event.date).toLocaleDateString()}</p>
                                 </div>
-                                <div className="bg-gray-50 p-4 rounded-xl">
-                                    <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Seats Left</p>
+                                <div className="rounded-2xl bg-gray-50 p-4 md:rounded-xl">
+                                    <p className="mb-1 text-xs font-semibold uppercase text-gray-500">Seats Left</p>
                                     <p className={`text-2xl font-bold ${event.availableSeats < 10 ? 'text-orange-600' : 'text-green-600'}`}>
                                         {event.availableSeats}/{event.totalSeats}
                                     </p>
                                 </div>
-                                <div className="bg-gray-50 p-4 rounded-xl">
-                                    <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Location</p>
-                                    <p className="text-sm font-bold text-gray-900 truncate">{event.location}</p>
+                                <div className="rounded-2xl bg-gray-50 p-4 md:rounded-xl">
+                                    <p className="mb-1 text-xs font-semibold uppercase text-gray-500">Location</p>
+                                    <p className="truncate text-sm font-bold text-gray-900">{event.location}</p>
                                     {(event.city || event.district || event.state) && (
                                         <p className="mt-1 text-xs font-medium text-gray-600">
-                                            {[event.city, event.district, event.state].filter(Boolean).join(' · ')}
+                                            {[event.city, event.district, event.state].filter(Boolean).join(' - ')}
                                         </p>
                                     )}
                                 </div>
                             </div>
 
                             <div className="border-t pt-6">
-                                <h3 className="text-lg font-bold mb-4 text-gray-900">Share This Event</h3>
+                                <h3 className="mb-4 text-lg font-bold text-gray-900">Share This Event</h3>
                                 <ShareEvent eventId={event._id} eventTitle={event.title} />
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-2xl shadow-lg p-8">
+                        <div className="rounded-[28px] bg-white p-5 shadow-lg md:rounded-2xl md:p-8">
                             <RatingComponent eventId={event._id} />
                         </div>
-                    </div>
+                    </motion.div>
 
-                    <div className="md:col-span-1">
-                        <div className="bg-white rounded-2xl shadow-lg p-8 mb-6 sticky top-24">
-                            <h3 className="text-xl font-bold text-gray-800 mb-6">Get Your Ticket</h3>
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.26, delay: 0.04 }}
+                        className="order-1 md:order-2 md:col-span-1"
+                    >
+                        <div className="mb-6 rounded-[28px] bg-white p-5 shadow-lg md:sticky md:top-24 md:rounded-2xl md:p-8">
+                            <h3 className="mb-6 text-xl font-bold text-gray-800">Get Your Ticket</h3>
 
-                            <div className="space-y-4 mb-8">
+                            <div className="mb-8 space-y-4">
                                 <div className="flex items-center gap-3 text-gray-600">
                                     <FaMoneyBillWave className="text-blue-600" size={20} />
                                     <div>
-                                        <p className="text-xs font-semibold text-gray-500 uppercase">Ticket Price</p>
-                                        <p className="font-bold text-gray-900 text-lg">
+                                        <p className="text-xs font-semibold uppercase text-gray-500">Ticket Price</p>
+                                        <p className="text-lg font-bold text-gray-900">
                                             {event.ticketPrice === 0 ? <span className="text-green-600">Free</span> : `Rs. ${event.ticketPrice}`}
                                         </p>
                                     </div>
@@ -299,8 +336,8 @@ const EventDetail = () => {
                                 <div className="flex items-center gap-3 text-gray-600">
                                     <FaChair className="text-blue-600" size={20} />
                                     <div>
-                                        <p className="text-xs font-semibold text-gray-500 uppercase">Availability</p>
-                                        <p className={`font-bold text-lg ${event.availableSeats < 10 ? 'text-orange-600' : 'text-green-600'}`}>
+                                        <p className="text-xs font-semibold uppercase text-gray-500">Availability</p>
+                                        <p className={`text-lg font-bold ${event.availableSeats < 10 ? 'text-orange-600' : 'text-green-600'}`}>
                                             {event.availableSeats}/{event.totalSeats} seats
                                         </p>
                                     </div>
@@ -309,7 +346,7 @@ const EventDetail = () => {
                                 <div className="flex items-center gap-3 text-gray-600">
                                     <FaCalendarAlt className="text-blue-600" size={20} />
                                     <div>
-                                        <p className="text-xs font-semibold text-gray-500 uppercase">Event Date</p>
+                                        <p className="text-xs font-semibold uppercase text-gray-500">Event Date</p>
                                         <p className="font-bold text-gray-900">{new Date(event.date).toLocaleDateString()}</p>
                                     </div>
                                 </div>
@@ -317,11 +354,11 @@ const EventDetail = () => {
                                 <div className="flex items-center gap-3 text-gray-600">
                                     <FaMapMarkerAlt className="text-blue-600" size={20} />
                                     <div>
-                                        <p className="text-xs font-semibold text-gray-500 uppercase">Location</p>
-                                        <p className="font-bold text-gray-900 text-sm">{event.location}</p>
+                                        <p className="text-xs font-semibold uppercase text-gray-500">Location</p>
+                                        <p className="text-sm font-bold text-gray-900">{event.location}</p>
                                         {(event.city || event.district || event.state) && (
-                                            <p className="text-xs font-medium text-gray-500 mt-0.5">
-                                                {[event.city, event.district, event.state].filter(Boolean).join(' · ')}
+                                            <p className="mt-0.5 text-xs font-medium text-gray-500">
+                                                {[event.city, event.district, event.state].filter(Boolean).join(' - ')}
                                             </p>
                                         )}
                                     </div>
@@ -348,12 +385,12 @@ const EventDetail = () => {
 
                             {showOTP && (
                                 <div className="mb-6">
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Enter OTP to Continue</label>
+                                    <label className="mb-2 block text-sm font-semibold text-gray-700">Enter OTP to Continue</label>
                                     <input
                                         type="text"
                                         required
                                         placeholder="6-digit code"
-                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 transition shadow-sm font-bold tracking-widest text-center text-lg"
+                                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-center text-lg font-bold tracking-widest shadow-sm transition focus:ring-2 focus:ring-blue-500"
                                         value={otp}
                                         onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                                         maxLength="6"
@@ -363,28 +400,43 @@ const EventDetail = () => {
 
                             <button
                                 onClick={handleBooking}
-                                disabled={isClientAccount || isSoldOut || hasActiveBooking || bookingLoading || (showOTP && otp.length !== 6)}
-                                className={`w-full py-3 px-6 rounded-xl font-bold text-lg transition shadow-lg mb-4 ${
-                                    isClientAccount || isSoldOut || hasActiveBooking || (successMsg && !showOTP && !isPaidEvent)
-                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                        : 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-xl'
+                                disabled={bookingDisabled}
+                                className={`mb-4 w-full rounded-2xl px-6 py-4 text-base font-bold transition shadow-lg md:rounded-xl md:py-3 md:text-lg ${
+                                    bookingDisabled || (successMsg && !showOTP && !isPaidEvent)
+                                        ? 'cursor-not-allowed bg-gray-300 text-gray-500'
+                                        : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-xl'
                                 }`}
                             >
-                                {bookingLoading ? 'Processing...' : (
-                                    isClientAccount
-                                        ? 'Booking Disabled for Client Account'
-                                        : hasActiveBooking
-                                        ? 'Already Booked'
-                                        : showOTP
-                                        ? (isPaidEvent ? 'Verify OTP & Pay' : 'Verify OTP & Book')
-                                        : (successMsg && !showOTP && !isPaidEvent ? 'Booked' : (isSoldOut ? 'Sold Out' : 'Book Now'))
-                                )}
+                                {bookingLabel}
                             </button>
 
-                            {error && <p className="text-red-600 text-sm text-center mb-4 bg-red-50 p-3 rounded-lg font-medium">{error}</p>}
-                            {successMsg && <p className="text-green-600 text-sm text-center bg-green-50 p-3 rounded-lg font-medium">{successMsg}</p>}
+                            {error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-center text-sm font-medium text-red-600">{error}</p>}
+                            {successMsg && <p className="rounded-lg bg-green-50 p-3 text-center text-sm font-medium text-green-600">{successMsg}</p>}
                         </div>
+                    </motion.div>
+                </div>
+            </div>
+
+            <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200/80 bg-white/95 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_35px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
+                <div className="mx-auto flex max-w-lg items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                        <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">Ticket</p>
+                        <p className="truncate text-lg font-black text-slate-900">
+                            {event.ticketPrice === 0 ? 'Free entry' : `Rs. ${event.ticketPrice}`}
+                        </p>
                     </div>
+                    <button
+                        type="button"
+                        onClick={handleBooking}
+                        disabled={bookingDisabled}
+                        className={`rounded-2xl px-5 py-3 text-sm font-bold shadow-lg transition ${
+                            bookingDisabled
+                                ? 'bg-slate-200 text-slate-500'
+                                : 'bg-slate-900 text-white shadow-slate-900/20 active:scale-[0.98]'
+                        }`}
+                    >
+                        {showOTP ? 'Continue' : 'Book'}
+                    </button>
                 </div>
             </div>
         </div>
