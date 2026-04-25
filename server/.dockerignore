@@ -1,7 +1,0 @@
-node_modules
-npm-debug.log
-.env
-coverage
-dev.log
-loadtest_server.log
-loadtest_server.err.log
