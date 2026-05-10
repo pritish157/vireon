@@ -2,6 +2,8 @@
 
 Vireon is a full-stack MERN event booking application with OTP-protected bookings, Razorpay checkout for paid events, and an admin dashboard for managing events, bookings, and refunds.
 
+**Live Demo:** https://vireon-swart.vercel.app
+
 ## Features
 - **User Authentication**: Secure login and registration with JWT and bcrypt.
 - **2FA OTP Verification**:
