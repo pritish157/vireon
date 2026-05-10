@@ -8,9 +8,7 @@
         "build": "echo 'No build required for Node.js backend'",
         "dev": "nodemon server.js",
         "seed": "node seed.js",
-        "seed:dev": "cross-env NODE_ENV=development node seed.js",
-        "migrate:legacy-clients": "node scripts/migrateLegacyClients.js",
-        "test": "cross-env NODE_ENV=test jest --runInBand"
+        "seed:dev": "cross-env NODE_ENV=development node seed.js"
     },
     "dependencies": {
         "bcryptjs": "^2.4.3",
@@ -32,8 +30,6 @@
     },
     "devDependencies": {
         "cross-env": "^7.0.3",
-        "jest": "^30.2.0",
-        "nodemon": "^3.1.0",
-        "supertest": "^7.1.4"
+        "nodemon": "^3.1.0"
     }
 }

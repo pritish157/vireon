@@ -456,8 +456,8 @@ const events = [
 ];
 
 const seedDatabase = async () => {
-    if (process.env.NODE_ENV === 'production') {
-        console.log('❌ Seeding is disabled in production environment');
+    if (!process.env.SEED_DATABASE || process.env.SEED_DATABASE !== 'true') {
+        console.log('❌ Seeding is disabled. Set SEED_DATABASE=true to enable seeding.');
         process.exit(0);
     }
 
