@@ -33,6 +33,14 @@ app.use(express.json({ limit: env.BODY_LIMIT }));
 app.use(express.urlencoded({ extended: false, limit: env.BODY_LIMIT }));
 app.use(mongoSanitize());
 
+app.get('/', (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: 'Welcome to the Vireon API. The backend is running successfully.',
+        environment: env.NODE_ENV
+    });
+});
+
 app.get('/api/health', (req, res) => {
     sendSuccess(res, {
         message: 'Service healthy',
