@@ -24,7 +24,10 @@ const stringToNumber = (defaultValue) =>
     }, z.number());
 
 const envSchema = z.object({
-    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    NODE_ENV: z.preprocess(
+        (val) => (typeof val === 'string' && val.trim() ? val.trim().toLowerCase() : 'development'),
+        z.enum(['development', 'test', 'production'])
+    ).default('development'),
     PORT: stringToNumber(5000).default(5000),
     MONGO_URI: z.string().min(1, 'MONGO_URI is required'),
     JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 characters'),
