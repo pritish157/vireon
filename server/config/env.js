@@ -63,7 +63,8 @@ const splitOrigins = (value) =>
 
 env.allowedOrigins = [
     ...splitOrigins(env.FRONTEND_URL),
-    ...splitOrigins(env.ADDITIONAL_CORS_ORIGINS)
+    ...splitOrigins(env.ADDITIONAL_CORS_ORIGINS),
+    'https://vireon-swart.vercel.app'
 ];
 
 env.isProduction = env.NODE_ENV === 'production';
