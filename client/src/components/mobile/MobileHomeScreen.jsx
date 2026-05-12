@@ -11,6 +11,7 @@ import {
 } from 'react-icons/fa';
 import EventCard from '../EventCard';
 import MobileScreenShell from './MobileScreenShell';
+import FramerFeaturedCarousel from '../FramerFeaturedCarousel';
 
 const quickActionBase =
     'rounded-[24px] border border-white/70 bg-white/95 p-4 shadow-[0_14px_40px_rgba(15,23,42,0.08)]';
@@ -114,43 +115,21 @@ export default function MobileHomeScreen({
                 </div>
             </section>
 
-            <section className="rounded-[26px] border border-white/70 bg-white/95 p-4 shadow-[0_14px_40px_rgba(15,23,42,0.08)]">
-                <div className="flex items-center justify-between gap-3">
-                    <div>
-                        <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">Featured</p>
-                        <h2 className="mt-1 text-lg font-black text-slate-900">This week</h2>
-                    </div>
-                    <Link to="/events" className="inline-flex items-center gap-2 text-sm font-bold text-blue-600">
-                        Explore
-                        <FaArrowRight className="text-xs" />
-                    </Link>
-                </div>
-
+            <div className="mt-4">
                 {loading ? (
                     <div className="mt-4 space-y-3">
                         {Array.from({ length: 2 }).map((_, index) => (
-                            <div key={index} className="h-32 animate-pulse rounded-[22px] bg-slate-100" />
+                            <div key={index} className="h-48 animate-pulse rounded-[22px] bg-slate-100" />
                         ))}
-                    </div>
-                ) : featuredEvents.length === 0 ? (
-                    <div className="mt-4 rounded-[22px] bg-slate-50 p-4 text-sm text-slate-500">
-                        No featured events available right now.
                     </div>
                 ) : (
-                    <div className="mt-4 space-y-4">
-                        {featuredEvents.map((event, index) => (
-                            <motion.div
-                                key={event._id}
-                                initial={{ opacity: 0, y: 12 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.22, delay: index * 0.04 }}
-                            >
-                                <EventCard event={event} />
-                            </motion.div>
-                        ))}
-                    </div>
+                    <FramerFeaturedCarousel
+                        title="Featured this month"
+                        subtitle="A curated selection of the best upcoming events."
+                        events={events}
+                    />
                 )}
-            </section>
+            </div>
 
             <section className="grid grid-cols-2 gap-3">
                 <button

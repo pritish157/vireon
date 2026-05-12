@@ -14,7 +14,7 @@ import EventCard from '../components/EventCard';
 import EventCardSkeleton from '../components/EventCardSkeleton';
 import EmptyState from '../components/EmptyState';
 import NearbyEventsSection from '../components/NearbyEventsSection';
-import EventCarousel from '../components/EventCarousel';
+import FramerFeaturedCarousel from '../components/FramerFeaturedCarousel';
 import Footer from '../components/Footer';
 import { AuthContext } from '../context/authContext';
 import { useLocationPreferences } from '../context/useLocationPreferences';
@@ -182,148 +182,20 @@ const Home = () => {
             </div>
 
             <div id="events-section" className="mb-6 px-1 md:mb-8 md:px-4">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div>
-                        <h2 className="text-3xl font-extrabold text-gray-900">Events</h2>
-                        {defaultMode === 'nearby' ? (
-                            <p className="mt-1 text-gray-600">
-                                Showing events near <span className="font-semibold text-gray-900">{locationLabel}</span>
-                            </p>
-                        ) : (
-                            <p className="mt-1 text-gray-600">{events.length} events found</p>
-                        )}
+                {loading ? (
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-8">
+                        {Array(3).fill(0).map((_, i) => (
+                            <EventCardSkeleton key={i} />
+                        ))}
                     </div>
-
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                        {canShowNearby && (
-                            <div className="grid grid-cols-2 gap-2 md:mr-2 md:flex md:items-center">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        if (!hasStoredLocation) openManualLocationModal();
-                                        setBrowseMode('nearby');
-                                    }}
-                                    className={`rounded-2xl border px-4 py-3 text-sm font-bold transition md:rounded-lg md:py-2 ${
-                                        defaultMode === 'nearby'
-                                            ? 'border-gray-900 bg-gray-900 text-white'
-                                            : 'border-gray-200 bg-white text-gray-900 hover:bg-gray-50'
-                                    }`}
-                                >
-                                    Nearby
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setBrowseMode('all')}
-                                    className={`rounded-2xl border px-4 py-3 text-sm font-bold transition md:rounded-lg md:py-2 ${
-                                        defaultMode === 'all'
-                                            ? 'border-gray-900 bg-gray-900 text-white'
-                                            : 'border-gray-200 bg-white text-gray-900 hover:bg-gray-50'
-                                    }`}
-                                >
-                                    Browse all
-                                </button>
-                            </div>
-                        )}
-
-                        <div className="flex items-center gap-3 rounded-[24px] border border-white/70 bg-white/90 px-4 py-3 shadow-sm md:border-transparent md:bg-transparent md:px-0 md:py-0 md:shadow-none">
-                            <label className="text-sm font-semibold text-gray-700">Sort by:</label>
-                            <select
-                                value={sortBy}
-                                onChange={(e) => setSortBy(e.target.value)}
-                                className="w-full rounded-2xl border border-gray-300 px-4 py-3 font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-600 md:w-auto md:rounded-lg md:py-2"
-                            >
-                                <option value="date">Date (Earliest)</option>
-                                <option value="price-low">Price (Low to High)</option>
-                                <option value="price-high">Price (High to Low)</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
+                ) : (
+                    <FramerFeaturedCarousel
+                        title={category ? `${category} Featured` : 'Featured this month'}
+                        subtitle="A curated selection of the best upcoming events in your area."
+                        events={events}
+                    />
+                )}
             </div>
-
-            {!loading && events.length > 0 && (
-                <div className="px-1 md:px-4">
-                    <EventCarousel
-                        title="Featured this week"
-                        subtitle="A curated, smooth slideshow of popular upcoming events."
-                        events={events.slice(0, 10)}
-                        renderItem={(event) => <EventCard event={event} />}
-                    />
-                </div>
-            )}
-
-            {defaultMode === 'nearby' ? (
-                <div className="mt-10 px-1 md:px-4">
-                    <NearbyEventsSection
-                        title="Events near you"
-                        description="We're showing events matched to your saved location."
-                        variant="carousel"
-                    />
-                    {!hasStoredLocation && (
-                        <div className="mt-8 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-                            <h3 className="text-xl font-bold text-gray-900">Set your location to personalize Home</h3>
-                            <p className="mt-2 text-sm text-gray-600">
-                                Choose your state and district to see nearby events instead of a long generic list.
-                            </p>
-                            <button
-                                type="button"
-                                onClick={openManualLocationModal}
-                                className="mt-5 rounded-xl bg-gray-900 px-5 py-3 font-bold text-white transition hover:bg-black"
-                            >
-                                Choose location
-                            </button>
-                        </div>
-                    )}
-                </div>
-            ) : (
-                <>
-                    {loading ? (
-                        <div className="grid grid-cols-1 gap-4 px-1 md:grid-cols-2 md:gap-8 md:px-4 lg:grid-cols-3">
-                            {Array(6).fill(0).map((_, i) => (
-                                <EventCardSkeleton key={i} />
-                            ))}
-                        </div>
-                    ) : events.length === 0 ? (
-                        <div className="px-1 md:px-4">
-                            <EmptyState
-                                title="No Events Found"
-                                description={
-                                    category
-                                        ? `No ${category} events available right now. Try other categories!`
-                                        : "Try adjusting your search or filters to find what you're looking for."
-                                }
-                            />
-                        </div>
-                    ) : (
-                        <motion.div
-                            initial="hidden"
-                            animate="visible"
-                            variants={{
-                                hidden: {},
-                                visible: {
-                                    transition: {
-                                        staggerChildren: 0.05
-                                    }
-                                }
-                            }}
-                            className="grid grid-cols-1 gap-4 px-1 md:grid-cols-2 md:gap-8 md:px-4 lg:grid-cols-3"
-                        >
-                            {events.map((event) => (
-                                <motion.div
-                                    key={event._id}
-                                    variants={{
-                                        hidden: { opacity: 0, y: 14 },
-                                        visible: { opacity: 1, y: 0 }
-                                    }}
-                                    transition={{ duration: 0.22 }}
-                                >
-                                    <EventCard event={event} />
-                                </motion.div>
-                            ))}
-                        </motion.div>
-                    )}
-                </>
-            )}
 
             <div className="mt-auto">
                 <Footer />
