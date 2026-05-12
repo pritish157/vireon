@@ -14,25 +14,25 @@ const verifyBookingOtp = async (email, otp) => {
     return OTP.findOne({ email: normalizeEmail(email), otp, action: OTP_ACTIONS.EVENT_BOOKING });
 };
 
-const reserveSeatForEvent = (eventId) =>
+const reserveSeatForEvent = (eventId, seats = 1) =>
     Event.findOneAndUpdate(
-        { _id: eventId, availableSeats: { $gt: 0 } },
-        { $inc: { availableSeats: -1 } },
+        { _id: eventId, availableSeats: { $gte: seats } },
+        { $inc: { availableSeats: -seats } },
         { new: true }
     );
 
-const releaseReservedSeat = async (eventId) => {
-    await Event.findByIdAndUpdate(eventId, { $inc: { availableSeats: 1 } });
+const releaseReservedSeat = async (eventId, seats = 1) => {
+    await Event.findByIdAndUpdate(eventId, { $inc: { availableSeats: seats } });
 };
 
-const ensureEventBookable = async ({ eventId, userId }) => {
+const ensureEventBookable = async ({ eventId, userId, seats = 1 }) => {
     const event = await Event.findById(eventId);
     if (!event) {
         throw new AppError(404, 'Event not found', { code: 'EVENT_NOT_FOUND' });
     }
 
-    if (event.availableSeats <= 0) {
-        throw new AppError(409, 'No seats available', { code: 'NO_SEATS_AVAILABLE' });
+    if (event.availableSeats < seats) {
+        throw new AppError(409, 'Not enough seats available', { code: 'NO_SEATS_AVAILABLE' });
     }
 
     const existingBooking = await Booking.findOne({

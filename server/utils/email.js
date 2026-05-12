@@ -53,13 +53,14 @@ const sendMail = async (mailOptions) => {
     }
 };
 
-const sendBookingEmail = async (userEmail, userName, eventTitle) => {
+const sendBookingEmail = async (userEmail, userName, eventTitle, numberOfTickets = 1) => {
     await sendMail({
         to: userEmail,
         subject: `Booking Confirmed: ${eventTitle}`,
         html: `
             <h2>Hi ${escapeHtml(userName)}!</h2>
             <p>Your booking for the event <strong>${escapeHtml(eventTitle)}</strong> is successfully confirmed.</p>
+            <p><strong>Tickets Booked:</strong> ${numberOfTickets}</p>
             <p>Thank you for choosing Vireon.</p>
         `
     });

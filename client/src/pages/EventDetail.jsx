@@ -36,6 +36,7 @@ const EventDetail = () => {
     const [error, setError] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
     const [showFullDescription, setShowFullDescription] = useState(false);
+    const [numberOfTickets, setNumberOfTickets] = useState(1);
 
     const markOrderFailed = async (bookingId) => {
         if (!bookingId) {
@@ -99,7 +100,8 @@ const EventDetail = () => {
 
         const { data } = await api.post('/bookings/create-order', {
             eventId: event._id,
-            otp: otp.trim()
+            otp: otp.trim(),
+            numberOfTickets
         });
 
         const options = {
@@ -184,7 +186,7 @@ const EventDetail = () => {
             } else if (event.ticketPrice > 0) {
                 await startRazorpayCheckout();
             } else {
-                const { data } = await api.post('/bookings', { eventId: event._id, otp: otp.trim() });
+                const { data } = await api.post('/bookings', { eventId: event._id, otp: otp.trim(), numberOfTickets });
                 setSuccessMsg('Free event booked successfully.');
                 setShowOTP(false);
                 setOtp('');
@@ -326,9 +328,9 @@ const EventDetail = () => {
                                 <div className="flex items-center gap-3 text-gray-600">
                                     <FaMoneyBillWave className="text-blue-600" size={20} />
                                     <div>
-                                        <p className="text-xs font-semibold uppercase text-gray-500">Ticket Price</p>
+                                        <p className="text-xs font-semibold uppercase text-gray-500">Total Price</p>
                                         <p className="text-lg font-bold text-gray-900">
-                                            {event.ticketPrice === 0 ? <span className="text-green-600">Free</span> : `Rs. ${event.ticketPrice}`}
+                                            {event.ticketPrice === 0 ? <span className="text-green-600">Free</span> : `Rs. ${event.ticketPrice * numberOfTickets}`}
                                         </p>
                                     </div>
                                 </div>
@@ -363,6 +365,25 @@ const EventDetail = () => {
                                         )}
                                     </div>
                                 </div>
+
+                                {!hasActiveBooking && !isClientAccount && !isSoldOut && (
+                                    <div className="flex items-center justify-between border-t border-gray-100 pt-4 mt-4">
+                                        <p className="text-sm font-semibold text-gray-700">Number of Tickets</p>
+                                        <div className="flex items-center gap-4">
+                                            <button 
+                                                onClick={() => setNumberOfTickets(Math.max(1, numberOfTickets - 1))}
+                                                disabled={numberOfTickets <= 1 || showOTP}
+                                                className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 font-bold text-gray-600 hover:bg-gray-200 disabled:opacity-50"
+                                            >-</button>
+                                            <span className="font-bold w-4 text-center">{numberOfTickets}</span>
+                                            <button 
+                                                onClick={() => setNumberOfTickets(Math.min(event.availableSeats, 10, numberOfTickets + 1))}
+                                                disabled={numberOfTickets >= Math.min(event.availableSeats, 10) || showOTP}
+                                                className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 font-bold text-gray-600 hover:bg-gray-200 disabled:opacity-50"
+                                            >+</button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {isPaidEvent && !showOTP && (
@@ -420,9 +441,9 @@ const EventDetail = () => {
             <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200/80 bg-white/95 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_35px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
                 <div className="mx-auto flex max-w-lg items-center gap-3">
                     <div className="min-w-0 flex-1">
-                        <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">Ticket</p>
+                        <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">Total</p>
                         <p className="truncate text-lg font-black text-slate-900">
-                            {event.ticketPrice === 0 ? 'Free entry' : `Rs. ${event.ticketPrice}`}
+                            {event.ticketPrice === 0 ? 'Free entry' : `Rs. ${event.ticketPrice * numberOfTickets}`}
                         </p>
                     </div>
                     <button

@@ -62,7 +62,7 @@ const users = [
     { name: 'Hannah Montana', email: 'hannah@vireon.com', password: 'password123', role: 'user' }
 ];
 
-const events = [
+const baseEvents = [
     {
         title: 'React & Node.js Developer Retreat',
         description: 'Join us for a 3-day deep dive into modern full-stack web development. Perfect for developers looking to take their skills to the next level.',
@@ -454,6 +454,18 @@ const events = [
         image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800'
     }
 ];
+
+const events = [...baseEvents];
+
+// Generate repeat events for the next 4 months to get over 100 high-quality events
+for (let monthOffset = 1; monthOffset <= 4; monthOffset++) {
+    baseEvents.forEach(e => {
+        const clone = { ...e };
+        // Shift date by roughly 30 days per month
+        clone.date = new Date(e.date.getTime() + monthOffset * 30 * 24 * 60 * 60 * 1000);
+        events.push(clone);
+    });
+}
 
 const seedDatabase = async () => {
     if (!process.env.SEED_DATABASE || process.env.SEED_DATABASE !== 'true') {

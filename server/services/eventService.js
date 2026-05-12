@@ -10,8 +10,14 @@ const getSortOption = (sort) => {
     return { date: 1 };
 };
 
-const buildEventFilters = ({ category, search, date }) => {
+const buildEventFilters = ({ category, search, date, status }) => {
     const filters = {};
+
+    if (status === 'upcoming') {
+        filters.date = { ...filters.date, $gte: new Date() };
+    } else if (status === 'past') {
+        filters.date = { ...filters.date, $lt: new Date() };
+    }
 
     if (category) {
         filters.category = category;

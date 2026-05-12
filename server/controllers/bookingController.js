@@ -49,14 +49,14 @@ exports.sendBookingOTP = asyncHandler(async (req, res) => {
 exports.bookEvent = asyncHandler(async (req, res) => {
     assertBookingAllowedForRole(req.user);
 
-    const { eventId, otp } = req.body;
+    const { eventId, otp, numberOfTickets = 1 } = req.body;
     const validOtp = await verifyBookingOtp(req.user.email, otp);
 
     if (!validOtp) {
         throw new AppError(400, 'Invalid or expired OTP for booking', { code: 'OTP_INVALID' });
     }
 
-    const event = await ensureEventBookable({ eventId, userId: req.user.id });
+    const event = await ensureEventBookable({ eventId, userId: req.user.id, seats: numberOfTickets });
 
     if (event.ticketPrice > 0) {
         throw new AppError(400, 'Paid events must be completed through Razorpay checkout', {
@@ -64,7 +64,7 @@ exports.bookEvent = asyncHandler(async (req, res) => {
         });
     }
 
-    const reservedEvent = await reserveSeatForEvent(eventId);
+    const reservedEvent = await reserveSeatForEvent(eventId, numberOfTickets);
     if (!reservedEvent) {
         throw new AppError(409, 'No seats available', { code: 'NO_SEATS_AVAILABLE' });
     }
@@ -78,10 +78,11 @@ exports.bookEvent = asyncHandler(async (req, res) => {
             paymentStatus: 'paid',
             paymentMethod: 'free',
             paymentGateway: 'none',
-            amount: 0
+            amount: 0,
+            numberOfTickets
         });
     } catch (error) {
-        await releaseReservedSeat(eventId);
+        await releaseReservedSeat(eventId, numberOfTickets);
         throw error;
     }
 
@@ -105,14 +106,14 @@ exports.createPaymentOrder = asyncHandler(async (req, res) => {
         });
     }
 
-    const { eventId, otp } = req.body;
+    const { eventId, otp, numberOfTickets = 1 } = req.body;
     const validOtp = await verifyBookingOtp(req.user.email, otp);
 
     if (!validOtp) {
         throw new AppError(400, 'Invalid or expired OTP for booking', { code: 'OTP_INVALID' });
     }
 
-    const event = await ensureEventBookable({ eventId, userId: req.user.id });
+    const event = await ensureEventBookable({ eventId, userId: req.user.id, seats: numberOfTickets });
 
     if (event.ticketPrice <= 0) {
         throw new AppError(400, 'Free events do not require a Razorpay order', {
@@ -123,7 +124,7 @@ exports.createPaymentOrder = asyncHandler(async (req, res) => {
     const razorpay = getRazorpayInstance();
     const receipt = `booking_${Date.now()}_${String(req.user.id).slice(-6)}`;
     const order = await razorpay.orders.create({
-        amount: Math.round(event.ticketPrice * 100),
+        amount: Math.round(event.ticketPrice * numberOfTickets * 100),
         currency: 'INR',
         receipt,
         notes: {
@@ -142,7 +143,8 @@ exports.createPaymentOrder = asyncHandler(async (req, res) => {
         paymentMethod: 'pending',
         paymentGateway: 'razorpay',
         razorpayOrderId: order.id,
-        amount: event.ticketPrice
+        amount: event.ticketPrice * numberOfTickets,
+        numberOfTickets
     });
 
     await OTP.deleteOne({ _id: validOtp._id });
@@ -212,7 +214,7 @@ exports.verifyPayment = asyncHandler(async (req, res) => {
     }
 
     if (booking.status !== 'confirmed') {
-        const reservedEvent = await reserveSeatForEvent(booking.eventId._id);
+        const reservedEvent = await reserveSeatForEvent(booking.eventId._id, booking.numberOfTickets);
         if (!reservedEvent) {
             const { refund, refundProcessed } = await initiateRazorpayRefund({
                 booking,
@@ -251,7 +253,7 @@ exports.verifyPayment = asyncHandler(async (req, res) => {
     booking.paymentDetails = payment;
     await booking.save();
 
-    await sendBookingEmail(booking.userId.email, booking.userId.name, booking.eventId.title);
+    await sendBookingEmail(booking.userId.email, booking.userId.name, booking.eventId.title, booking.numberOfTickets);
 
     return sendSuccess(res, {
         message: 'Payment verified successfully',
@@ -350,7 +352,7 @@ exports.refundBookingPayment = asyncHandler(async (req, res) => {
         refund = result.refund;
 
         if (result.refundProcessed && wasConfirmed && booking.eventId) {
-            await Event.findByIdAndUpdate(booking.eventId._id, { $inc: { availableSeats: 1 } });
+            await Event.findByIdAndUpdate(booking.eventId._id, { $inc: { availableSeats: booking.numberOfTickets } });
         }
     } catch (error) {
         await Booking.findByIdAndUpdate(booking._id, { $set: { paymentStatus: 'paid' } });
@@ -399,10 +401,10 @@ exports.confirmBooking = asyncHandler(async (req, res) => {
     }
     await booking.save();
 
-    event.availableSeats -= 1;
+    event.availableSeats -= booking.numberOfTickets;
     await event.save();
 
-    await sendBookingEmail(booking.userId.email, booking.userId.name, booking.eventId.title);
+    await sendBookingEmail(booking.userId.email, booking.userId.name, booking.eventId.title, booking.numberOfTickets);
 
     return sendSuccess(res, {
         message: 'Booking confirmed successfully',
@@ -482,7 +484,7 @@ exports.cancelBooking = asyncHandler(async (req, res) => {
     await booking.save();
 
     if (wasConfirmed) {
-        await Event.findByIdAndUpdate(booking.eventId, { $inc: { availableSeats: 1 } });
+        await Event.findByIdAndUpdate(booking.eventId, { $inc: { availableSeats: booking.numberOfTickets } });
     }
 
     return sendSuccess(res, {

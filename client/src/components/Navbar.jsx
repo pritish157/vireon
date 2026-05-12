@@ -17,15 +17,6 @@ const Navbar = () => {
     const goToEventsSection = () => {
         setIsOpen(false);
         setShowUserMenu(false);
-
-        if (location.pathname === '/' && window.innerWidth >= 768) {
-            const section = document.getElementById('events-section');
-            if (section) {
-                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-            return;
-        }
-
         navigate('/events');
     };
 

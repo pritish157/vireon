@@ -18,6 +18,7 @@ const bookingSchema = new mongoose.Schema({
     paymentDetails: { type: mongoose.Schema.Types.Mixed, default: null },
     refundDetails: { type: mongoose.Schema.Types.Mixed, default: null },
     amount: { type: Number, required: true, min: 0 },
+    numberOfTickets: { type: Number, default: 1, min: 1 },
     bookedAt: { type: Date, default: Date.now, index: true }
 }, { timestamps: true });
 
