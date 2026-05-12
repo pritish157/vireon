@@ -46,4 +46,14 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+api.interceptors.response.use(
+    (response) => {
+        if (response.data && response.data.success === true && 'data' in response.data) {
+            response.data = response.data.data;
+        }
+        return response;
+    },
+    (error) => Promise.reject(error)
+);
+
 export default api;
